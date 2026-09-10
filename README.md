@@ -19,7 +19,7 @@ Le projet fournit notamment :
 - `mcs`
 - Mono.Cecil
 - `jq` (optionnel, pour interroger directement `captvty-cache.json`)
-- une installation fonctionnelle de Captvty 3.x
+- une installation originale de **Captvty 3.0.1.26**
 
 Sous Debian, les dépendances nécessaires peuvent être installées par exemple avec :
 
@@ -33,17 +33,30 @@ Pour installer également `jq` :
 sudo apt install jq
 ```
 
-Exemple de chemin vers Mono.Cecil sous Debian :
+Mono.Cecil peut être installé dans une version différente suivant la version de Debian.
 
-```text
-/usr/lib/mono/gac/Mono.Cecil/0.11.1.0__0738eb9f132ed756/Mono.Cecil.dll
+Le chemin peut être déterminé automatiquement :
+
+```bash
+CECIL=$(find /usr/lib/mono/gac/Mono.Cecil \
+  -name Mono.Cecil.dll \
+  | sort -V \
+  | tail -1)
+
+echo "$CECIL"
 ```
+
+Par exemple, le test sur Debian 12 utilise Mono.Cecil `0.11.0.0`, alors qu'une installation Debian 13 peut disposer de `0.11.1.0`.
 
 ## Construction depuis les sources
 
 Le dépôt ne fournit pas `Captvty.exe`.
 
-Il faut disposer d'une installation fonctionnelle de Captvty et de ses fichiers associés, notamment le répertoire `bin/`.
+Le fichier d'entrée doit être le `Captvty.exe` **Windows original de Captvty 3.0.1.26**. N'utilisez pas une version déjà modifiée ou adaptée pour Mono.
+
+Les patches Cecil utilisent certains noms internes obfusqués de Captvty 3.0.1.26. Ils ne sont donc pas garantis compatibles avec une autre version de Captvty.
+
+Les autres fichiers de l'installation originale, notamment le répertoire `bin/`, doivent être conservés pour l'exécution de la CLI.
 
 La chaîne de construction du moteur est la suivante :
 
@@ -65,13 +78,18 @@ Captvty-cli-engine-m6.exe
 
 `Captvty-cli-engine.exe` est le moteur utilisé par défaut par la CLI.
 
-### 1. Compiler les outils de patch
-
-Depuis le répertoire contenant les sources :
+### 1. Déterminer le chemin de Mono.Cecil
 
 ```bash
-CECIL=/usr/lib/mono/gac/Mono.Cecil/0.11.1.0__0738eb9f132ed756/Mono.Cecil.dll
+CECIL=$(find /usr/lib/mono/gac/Mono.Cecil \
+  -name Mono.Cecil.dll \
+  | sort -V \
+  | tail -1)
+
+echo "$CECIL"
 ```
+
+### 2. Compiler les outils de patch
 
 Compiler le patch de compatibilité Mono :
 
@@ -102,9 +120,9 @@ mcs \
   patch-m6.cs
 ```
 
-### 2. Construire le moteur compatible Mono
+### 3. Construire le moteur compatible Mono
 
-À partir du `Captvty.exe` original :
+À partir du `Captvty.exe` Windows original de Captvty 3.0.1.26 :
 
 ```bash
 mono patch-mono-compat.exe \
@@ -112,12 +130,26 @@ mono patch-mono-compat.exe \
   Captvty-mono-clean.exe
 ```
 
-Puis construire le moteur utilisé par la CLI :
+Le programme doit notamment afficher :
+
+```text
+Créé : Captvty-mono-clean.exe
+```
+
+Construire ensuite le moteur utilisé par la CLI :
 
 ```bash
 mono patch-captvty-cli.exe \
   Captvty-mono-clean.exe \
   Captvty-cli-engine.exe
+```
+
+Le résultat attendu comprend notamment :
+
+```text
+Patch : System.Void _exB::_GUA(_8eB)
+Patch : System.Void _exB::_XFb()
+OK : moteur CLI écrit dans Captvty-cli-engine.exe
 ```
 
 Le patch M6 peut ensuite être appliqué si nécessaire :
@@ -128,7 +160,15 @@ mono patch-m6.exe \
   Captvty-cli-engine-m6.exe
 ```
 
-### 3. Compiler le provider
+Il produit une variante :
+
+```text
+Captvty-cli-engine-m6.exe
+```
+
+La CLI utilise par défaut `Captvty-cli-engine.exe`.
+
+### 4. Compiler le provider
 
 ```bash
 mcs \
@@ -136,7 +176,7 @@ mcs \
   captvty-provider.cs
 ```
 
-### 4. Compiler la CLI
+### 5. Compiler la CLI
 
 ```bash
 mcs \
@@ -150,12 +190,29 @@ mcs \
 ```text
 Captvty.exe
 Captvty-cli-engine.exe
+Captvty-cli-engine-m6.exe
 captvty-provider.exe
 captvty-cli.exe
 bin/
 ```
 
 Les autres DLL et fichiers nécessaires à Captvty doivent rester présents dans son installation.
+
+### Validation de la construction
+
+La chaîne complète de construction a été testée depuis un clone propre du dépôt sur **Debian 12**, à partir du `Captvty.exe` Windows original de Captvty 3.0.1.26.
+
+Avant le premier test :
+
+```bash
+export MONO_PATH="$PWD/bin:$PWD/bin/cefsharp"
+```
+
+Par exemple :
+
+```bash
+mono captvty-cli.exe --timeout 60 list "France 2" "journal"
+```
 
 ## Utilisation
 
@@ -252,14 +309,16 @@ mono captvty-cli.exe search --live "plus belle la vie"
 
 ## Groupe TF1 : authentification
 
-Pour les chaînes du groupe TF1, les identifiants sont fournis à la CLI par les variables d'environnement :
+La consultation et la recherche des émissions TF1 peuvent fonctionner sans identifiants.
+
+Pour le téléchargement des émissions du groupe TF1, un compte TF1 est nécessaire. Les identifiants sont fournis à la CLI par les variables d'environnement :
 
 ```bash
 export TF1_USER="votre_utilisateur"
 export TF1_PASS="votre_mot_de_passe"
 ```
 
-La CLI utilise donc :
+La CLI utilise :
 
 - `TF1_USER` : identifiant du compte TF1 ;
 - `TF1_PASS` : mot de passe du compte TF1.
@@ -271,8 +330,6 @@ Exemple :
 ```bash
 export TF1_USER="mon_identifiant"
 export TF1_PASS="mon_mot_de_passe"
-
-mono captvty-cli.exe list "TF1" "plus belle la vie"
 ```
 
 Pour éviter de saisir les variables à chaque session, elles peuvent par exemple être définies dans un fichier local non versionné ou dans l'environnement du shell.
@@ -354,7 +411,7 @@ Les autres fichiers et DLL nécessaires à Captvty doivent naturellement rester 
 
 ## Interroger le cache avec jq
 
-Le fichier `captvty-cache.json` peut aussi être consulté directement avec [`jq`](https://jqlang.org/).
+Le fichier `captvty-cache.json` peut aussi être consulté directement avec `jq`.
 
 Afficher la date de dernière mise à jour :
 
@@ -389,7 +446,7 @@ jq -r '.programs[]
   | @tsv' captvty-cache.json
 ```
 
-Rechercher un texte dans les titres ou sous-titres, sans tenir compte de la casse, par exemple `plus belle la vie` :
+Rechercher un texte dans les titres ou sous-titres, sans tenir compte de la casse :
 
 ```bash
 jq -r '.programs[]
@@ -438,7 +495,7 @@ Principales évolutions :
 - conservation de timeouts plus longs pour `info` ciblé et `get` ;
 - mise à jour du cache robuste : en cas de timeout ou d'erreur sur une chaîne, l'ancien cache est conservé ;
 - compatibilité avec les sorties worker V1 et V2 ;
-- ajout des sources permettant de reconstruire `Captvty-cli-engine.exe` depuis un `Captvty.exe` original ;
+- ajout des sources permettant de reconstruire `Captvty-cli-engine.exe` depuis le `Captvty.exe` original ;
 - ajout du patch de compatibilité Mono consolidé.
 
 ## SHA-256
