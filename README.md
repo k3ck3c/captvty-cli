@@ -18,6 +18,7 @@ Le projet fournit notamment :
 - Mono
 - `mcs`
 - Mono.Cecil
+- `jq` (optionnel, pour interroger directement `captvty-cache.json`)
 - une installation fonctionnelle de Captvty
 - les fichiers :
   - `Captvty-cli-engine.exe`
@@ -30,6 +31,8 @@ Exemple de dépendance Mono.Cecil sous Debian :
 ```text
 /usr/lib/mono/gac/Mono.Cecil/0.11.1.0__0738eb9f132ed756/Mono.Cecil.dll
 ```
+installation (jq optionnel)
+```sudo apt install mono-devel libmono-cecil-private-cil jq```
 
 ## Compilation
 
