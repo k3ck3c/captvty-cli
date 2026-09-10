@@ -52,6 +52,24 @@ Par exemple, le test sur Debian 12 utilise Mono.Cecil `0.11.0.0`, alors qu'une i
 
 Le dépôt ne fournit pas `Captvty.exe`.
 
+Après avoir cloné le dépôt, décompressez Captvty 3.0.1.26 Windows original directement dans le répertoire du clone.
+
+Par exemple :
+
+git clone https://github.com/k3ck3c/captvty-cli.git
+cd captvty-cli
+unzip /chemin/vers/captvty-3.0.1.26.zip
+
+Après extraction, le répertoire doit notamment contenir :
+
+Captvty.exe
+Captvty.exe.config
+bin/
+Vidéos/
+
+Le répertoire `Vidéos/`, créé lors de l'extraction de Captvty, est utilisé pour accueillir les émissions téléchargées.
+
+
 Le fichier d'entrée doit être le `Captvty.exe` **Windows original de Captvty 3.0.1.26**. N'utilisez pas une version déjà modifiée ou adaptée pour Mono.
 
 Les patches Cecil utilisent certains noms internes obfusqués de Captvty 3.0.1.26. Ils ne sont donc pas garantis compatibles avec une autre version de Captvty.
