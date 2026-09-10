@@ -23,6 +23,7 @@ Le projet fournit notamment :
   - `Captvty-cli-engine.exe`
   - `captvty-provider.exe`
   - `captvty-cli-v2.4.1.cs`
+Placez `captvty-cli.exe`, `Captvty-cli-engine.exe` et `captvty-provider.exe` dans le répertoire d'installation de Captvty contenant `Captvty.exe`, puis définissez `MONO_PATH` comme indiqué ci-dessous, pointant dans le répertoire bin de l'installation de Captvty.
 
 Exemple de dépendance Mono.Cecil sous Debian :
 
@@ -41,7 +42,15 @@ mcs \
 
 ## Utilisation
 
+Avant de lancer la CLI, définissez `MONO_PATH` pour permettre à Mono de trouver
+les assemblies de Captvty, notamment celles de CefSharp.
+
+Depuis le répertoire d'installation de Captvty :
+
+```bash
+export MONO_PATH="$PWD/bin:$PWD/bin/cefsharp"
 ```text
+export MONO_PATH="$PWD/bin:$PWD/bin/cefsharp"
 mono captvty-cli.exe [--timeout secondes] update [--all | "chaîne" ...]
 mono captvty-cli.exe [--timeout secondes] search [--live] "texte"
 mono captvty-cli.exe [--timeout secondes] list "chaîne" "texte"
