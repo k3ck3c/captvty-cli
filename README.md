@@ -322,6 +322,8 @@ Mise à jour complète :
 
 ```bash
 mono captvty-cli.exe update --all
+```
+```text
 [1/54] TF1 ... OK (14041)
 [2/54] France 2 ... OK (3303)
 [3/54] France 3 ... OK (10092)
