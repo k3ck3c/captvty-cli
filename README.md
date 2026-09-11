@@ -603,30 +603,30 @@ jq '.status' captvty-cache.json
 
 Afficher uniquement les chaînes dont la dernière mise à jour n'est pas marquée `ok` :
 
-```bash
+<pre>
 jq -r '.status
   | to_entries[]
   | select(.value != "ok")
   | [.key, .value]
-  | @tsv' captvty-cache.json
-beIN SPORTS     empty
+  | @tsv' captvty-cache.json | column -t -s $'\t'
+<strong>beIN SPORTS     empty
 Club RTL        empty
-CNews   empty
-CStar   error
+CNews           empty
+CStar           error
 ICI Tou.tv      error
-La Télé empty
+La Télé         empty
 La Trois        empty
-La Une  empty
-NOVO19  empty
+La Une          empty
+NOVO19          empty
 Plug RTL        empty
 RMC Découverte  empty
 RMC Life        empty
 RMC Story       empty
-RTL-TVI empty
-T18     empty
-Tipik   empty
-TV5 Monde       empty
-```
+RTL-TVI         empty
+T18             empty
+Tipik           empty
+TV5 Monde       empty</strong>
+</pre>
 
 ## Codes de retour
 
