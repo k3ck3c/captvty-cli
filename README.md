@@ -454,18 +454,39 @@ Afficher le nombre total d'émissions présentes dans le cache :
 
 ```bash
 jq '.programs | length' captvty-cache.json
+57814
 ```
 
 Afficher la liste des chaînes présentes dans le cache :
 
 ```bash
 jq -r '.programs[].channel' captvty-cache.json | sort -fu
+Arte
+France 2
+France 3
+France 4
+France 5
+LCP Assemblée Nationale
+M6
+Public Sénat
+TF1
+W9
 ```
 
 Compter les émissions par chaîne :
 
 ```bash
 jq -r '.programs[].channel' captvty-cache.json | sort | uniq -c | sort -nr
+  15416 TF1
+  14246 Arte
+  10092 France 3
+   5563 M6
+   3303 France 2
+   2734 France 4
+   2311 W9
+   1893 France 5
+   1384 LCP Assemblée Nationale
+    872 Public Sénat
 ```
 
 Afficher les titres et sous-titres d'une chaîne, par exemple TF1 :
@@ -493,6 +514,18 @@ Afficher l'état de la dernière mise à jour des chaînes :
 
 ```bash
 jq '.status' captvty-cache.json
+{
+  "Arte": "ok",
+  "France 2": "ok",
+  "France 3": "ok",
+  "France 4": "ok",
+  "France 5": "ok",
+  "LCP Assemblée Nationale": "ok",
+  "M6": "ok",
+  "Public Sénat": "ok",
+  "TF1": "ok",
+  "W9": "ok"
+}
 ```
 
 Afficher uniquement les chaînes dont la dernière mise à jour n'est pas marquée `ok` :
