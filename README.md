@@ -314,7 +314,7 @@ exemple
 
 <pre>
 mono captvty-cli.exe update "LCI"
-<em>[1/1] LCI ... OK (3065)</em>
+<strong>[1/1] LCI ... OK (3065)</strong>
 </pre>
 
 Mise à jour complète :
