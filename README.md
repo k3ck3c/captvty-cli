@@ -447,6 +447,7 @@ Afficher la date de dernière mise à jour :
 
 ```bash
 jq -r '.updated' captvty-cache.json
+2026-09-11T09:42:26.2259220+02:00
 ```
 
 Afficher le nombre total d'émissions présentes dans le cache :
