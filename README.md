@@ -288,6 +288,8 @@ Sans argument, `update` met à jour les 10 premières chaînes du catalogue, aff
 
 ```bash
 mono captvty-cli.exe update
+```
+```text
 [1/10] TF1 ... OK (15416)
 [2/10] France 2 ... OK (3303)
 [3/10] France 3 ... OK (10092)
@@ -310,6 +312,9 @@ mono captvty-cli.exe update "TF1" "France 2"
 exemple
 ```bash
 mono captvty-cli.exe update "LCI"
+```
+text
+```
 [1/1] LCI ... OK (3065)
 ```
 Mise à jour complète :
