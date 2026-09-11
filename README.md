@@ -585,22 +585,21 @@ jq -r '.programs[]
 
 Afficher l'état de la dernière mise à jour des chaînes :
 
-```bash
-jq '.status' captvty-cache.json
-{
-  "Arte": "ok",
-  "France 2": "ok",
-  "France 3": "ok",
-  "France 4": "ok",
-  "France 5": "ok",
-  "LCP Assemblée Nationale": "ok",
-  "M6": "ok",
-  "Public Sénat": "ok",
-  "TF1": "ok",
-  "W9": "ok"
-}
-```
-
+<PRE>
+jq -r '.status | to_entries[] | [.key, .value] | @tsv' captvty-cache.json |   column -t -s $'\t'
+<STRONG>
+Arte                      ok
+France 2                  ok
+France 3                  ok
+France 4                  ok
+France 5                  ok
+LCP Assemblée Nationale   ok
+M6                        ok
+Public Sénat              ok
+TF1                       ok
+W9                        ok
+</STRONG>
+</PRE>
 Afficher uniquement les chaînes dont la dernière mise à jour n'est pas marquée `ok` :
 
 <pre>
