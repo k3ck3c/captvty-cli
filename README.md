@@ -55,12 +55,11 @@ Le dépôt ne fournit pas `Captvty.exe`.
 Après avoir cloné le dépôt, décompressez Captvty 3.0.1.26 Windows original directement dans le répertoire du clone.
 
 Par exemple :
-
+```bash
 git clone https://github.com/k3ck3c/captvty-cli.git
-
 cd captvty-cli
-
 unzip /chemin/vers/captvty-3.0.1.26.zip
+```
 
 Après extraction, le répertoire doit notamment contenir :
 
