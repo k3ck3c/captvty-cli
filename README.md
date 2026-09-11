@@ -314,9 +314,7 @@ exemple
 ```bash
 mono captvty-cli.exe update "LCI"
 ```
-> [!NOTE]
-> **Résultat :** `[1/1] LCI ... OK (3065)
-```
+** `[1/1] LCI ... OK (3065)**
 
 
 Mise à jour complète :
