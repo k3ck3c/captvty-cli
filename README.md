@@ -279,11 +279,10 @@ Une valeur fournie explicitement avec `--timeout` remplace le timeout par défau
 
 ## Mise à jour du cache
 
-Sans argument, `update` met à jour les premières chaînes du catalogue et dure une dizaine de minutes :
+Sans argument, `update` met à jour les premières chaînes du catalogue, affiche le nombre de replays par chaine et dure une dizaine de minutes :
 
 ```bash
 mono captvty-cli.exe update
-```bash
 [1/10] TF1 ... OK (15416)
 [2/10] France 2 ... OK (3303)
 [3/10] France 3 ... OK (10092)
@@ -296,9 +295,7 @@ mono captvty-cli.exe update
 [10/10] W9 ... OK (2311)
 
 Catalogue: 57814 émission(s)
-``
-cela peut afficher 
-``
+```
 
 Mise à jour de chaînes précises :
 
