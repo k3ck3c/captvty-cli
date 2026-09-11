@@ -602,6 +602,23 @@ jq -r '.status
   | select(.value != "ok")
   | [.key, .value]
   | @tsv' captvty-cache.json
+beIN SPORTS     empty
+Club RTL        empty
+CNews   empty
+CStar   error
+ICI Tou.tv      error
+La Télé empty
+La Trois        empty
+La Une  empty
+NOVO19  empty
+Plug RTL        empty
+RMC Découverte  empty
+RMC Life        empty
+RMC Story       empty
+RTL-TVI empty
+T18     empty
+Tipik   empty
+TV5 Monde       empty
 ```
 
 ## Codes de retour
