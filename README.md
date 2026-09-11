@@ -629,6 +629,11 @@ TV5 Monde       empty</strong>
 </pre>
 
 Rechercher une émission parmi tous les replays, par exemple looming tower
+(la commande 
+
+mono captvty-cli.exe search "looming tower"
+
+sera disponible dans la version 2.4.2)
 
 <pre>
 jq -r ' .programs[] | select( ((.title // "") + " " + (.subtitle // "")) | test("looming tower"; "i") ) | [.channel, .title, .subtitle] | @tsv ' captvty-cache.json | column -t -s $'\t'
@@ -643,7 +648,7 @@ M6  The looming tower : aux origines du 11 septembre - Episode 8 - Une relation 
 M6  The looming tower : aux origines du 11 septembre - Episode 5 - Le bug de l'an 2000
 M6  The looming tower : aux origines du 11 septembre - Episode 2 - Ma religion m'échappe
 M6  The looming tower : aux origines du 11 septembre - Episode 9 - Mardi
-</strong>strong>  
+</strong>  
 </pre>
 ## Codes de retour
 
