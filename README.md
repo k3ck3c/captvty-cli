@@ -521,7 +521,8 @@ Principales évolutions :
 Source `captvty-cli-v2.4.1.cs` :
 
 ```text
-5c82f099b9122a06f2d5dbedbbff810fcfa7f57c2879bf1478418ab2f50b6a07
+sha256sum captvty-cli-v2.4.1.cs
+5c82f099b9122a06f2d5dbedbbff810fcfa7f57c2879bf1478418ab2f50b6a07  captvty-cli-v2.4.1.cs
 ```
 
 ## Remarque
