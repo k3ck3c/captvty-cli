@@ -65,9 +65,13 @@ unzip /chemin/vers/captvty-3.0.1.26.zip
 Après extraction, le répertoire doit notamment contenir :
 
 Captvty.exe
+
 Captvty.exe.config
+
 bin/
+
 Vidéos/
+
 
 Le répertoire `Vidéos/`, créé lors de l'extraction de Captvty, est utilisé pour accueillir les émissions téléchargées.
 
