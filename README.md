@@ -312,10 +312,10 @@ mono captvty-cli.exe update "TF1" "France 2"
 ```
 exemple
 
-```console
+<pre>
 mono captvty-cli.exe update "LCI"
-[1/1] LCI ... OK (3065)
-```
+<em>[1/1] LCI ... OK (3065)</em>
+</pre>
 
 Mise à jour complète :
 
