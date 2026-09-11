@@ -311,11 +311,11 @@ Mise à jour de chaînes précises :
 mono captvty-cli.exe update "TF1" "France 2"
 ```
 exemple
-```bash
-mono captvty-cli.exe update "LCI"
-```
-**[1/1] LCI ... OK (3065)**
 
+```console
+$ mono captvty-cli.exe update "LCI"
+[1/1] LCI ... OK (3065)
+```
 
 Mise à jour complète :
 
