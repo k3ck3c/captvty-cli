@@ -369,7 +369,7 @@ mono captvty-cli.exe update --all
 Catalogue: 94061 émission(s)
 
 Cache écrit: /home/gg/captvty-cli/captvty-cache.json
-``
+```
 Le cache est enregistré dans :
 
 ```text
