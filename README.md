@@ -315,8 +315,7 @@ exemple
 mono captvty-cli.exe update "LCI"
 ```
 
-text
-```
+```text
 [1/1] LCI ... OK (3065)
 ```
 Mise à jour complète :
