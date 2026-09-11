@@ -57,7 +57,9 @@ Après avoir cloné le dépôt, décompressez Captvty 3.0.1.26 Windows original 
 Par exemple :
 
 git clone https://github.com/k3ck3c/captvty-cli.git
+
 cd captvty-cli
+
 unzip /chemin/vers/captvty-3.0.1.26.zip
 
 Après extraction, le répertoire doit notamment contenir :
