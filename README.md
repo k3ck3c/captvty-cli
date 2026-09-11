@@ -600,6 +600,7 @@ TF1                       ok
 W9                        ok
 </STRONG>
 </PRE>
+
 Afficher uniquement les chaînes dont la dernière mise à jour n'est pas marquée `ok` :
 
 <pre>
@@ -627,6 +628,23 @@ Tipik           empty
 TV5 Monde       empty</strong>
 </pre>
 
+Rechercher une émission parmi tous les replays, par exemple looming tower
+
+<pre>
+jq -r ' .programs[] | select( ((.title // "") + " " + (.subtitle // "")) | test("looming tower"; "i") ) | [.channel, .title, .subtitle] | @tsv ' captvty-cache.json | column -t -s $'\t'
+<strong>
+M6  The looming tower : aux origines du 11 septembre - Episode 10 - 11 septembre
+M6  The looming tower : aux origines du 11 septembre - Episode 6 - Des garçons va-t-en-guerre
+M6  The looming tower : aux origines du 11 septembre - Episode 3 - Des erreurs ont été commises
+M6  The looming tower : aux origines du 11 septembre - Episode 1 - Ça commence
+M6  The looming tower : aux origines du 11 septembre - Episode 4 - Mercure
+M6  The looming tower : aux origines du 11 septembre - Episode 7 - Le général
+M6  The looming tower : aux origines du 11 septembre - Episode 8 - Une relation très particulière
+M6  The looming tower : aux origines du 11 septembre - Episode 5 - Le bug de l'an 2000
+M6  The looming tower : aux origines du 11 septembre - Episode 2 - Ma religion m'échappe
+M6  The looming tower : aux origines du 11 septembre - Episode 9 - Mardi
+</strong>strong>  
+</pre>
 ## Codes de retour
 
 Les principales valeurs utilisées sont :
