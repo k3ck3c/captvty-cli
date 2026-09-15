@@ -506,6 +506,12 @@ mono captvty-cli.exe get \
   "Sous-titre" \
   high
 ```
+si une série a 10 épisodes, le téléchargement de l'épisode 1 va échouer "2 vidéos correspondent"
+
+la 1 et la 10 contiennent épisode 1
+
+dans ce cas, indiquer une partie du texte de l'épisode 1
+
 
 Pendant le téléchargement, la CLI peut afficher l'état Captvty, le média sélectionné et le chemin du fichier final.
 
