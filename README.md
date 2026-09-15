@@ -390,6 +390,22 @@ captvty-cache.json
 
 Lorsqu'une chaîne rencontre un timeout ou une erreur pendant `update`, son ancien contenu de cache est conservé.
 
+##la structure du fichier captvty-cli.json##
+
+update construit le catalogue local. 
+
+Pour chaque programme, il conserve uniquement channel, title et subtitle. 
+
+Il met également à jour la date updated et l'état de chaque chaîne (ok, empty, timeout, error).
+
+info n'enrichit pas le catalogue JSON. 
+
+Elle interroge Captvty en temps réel et récupère des informations détaillées sur chaque émission et ses flux : 
+
+numéro, titre, sous-titre, erreur éventuelle, résolution (width × height), débit (bitrate), flux préféré par Captvty (best) ainsi que les indicateurs internes LO, zzA, pk, au et uhA.
+
+list, search et get ne modifient pas non plus le catalogue.
+
 ## Recherche
 
 ### Recherche dans le cache
