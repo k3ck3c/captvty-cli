@@ -92,6 +92,10 @@ Captvty-mono-clean.exe
     │
     │ patch-captvty-cli
     ▼
+Captvty-cli-engine-unpatched.exe
+    │
+    │ patch-bfmtv-hashset
+    ▼
 Captvty-cli-engine.exe
     │
     │ patch-m6
@@ -143,6 +147,15 @@ mcs \
   patch-m6.cs
 ```
 
+Compiler le correctif BFMTV :
+
+```bash
+mcs \
+  -r:$CECIL \
+  -out:patch-bfmtv-hashset.exe \
+  patch-bfmtv-hashset.cs
+```
+
 ### 3. Construire le moteur compatible Mono
 
 À partir du `Captvty.exe` Windows original de Captvty 3.0.1.26 :
@@ -164,7 +177,7 @@ Construire ensuite le moteur utilisé par la CLI :
 ```bash
 mono patch-captvty-cli.exe \
   Captvty-mono-clean.exe \
-  Captvty-cli-engine.exe
+  Captvty-cli-engine-unpatched.exe
 ```
 
 Le résultat attendu comprend notamment :
@@ -172,8 +185,27 @@ Le résultat attendu comprend notamment :
 ```text
 Patch : System.Void _exB::_GUA(_8eB)
 Patch : System.Void _exB::_XFb()
-OK : moteur CLI écrit dans Captvty-cli-engine.exe
+OK : moteur CLI écrit dans Captvty-cli-engine-unpatched.exe
 ```
+
+Appliquer ensuite le correctif BFMTV :
+
+```bash
+mono patch-bfmtv-hashset.exe \
+  Captvty-cli-engine-unpatched.exe \
+  Captvty-cli-engine.exe
+```
+
+Le résultat attendu comprend notamment :
+
+```text
+patched=1
+written: Captvty-cli-engine.exe
+```
+
+`patched=1` confirme que le correctif attendu a été appliqué exactement une fois.
+
+`Captvty-cli-engine.exe` est alors le moteur utilisé par défaut par la CLI.
 
 Le patch M6 peut ensuite être appliqué si nécessaire :
 
@@ -199,7 +231,31 @@ mcs \
   captvty-provider.cs
 ```
 
-### 5. Compiler la CLI
+### 5. Compiler les shims CefSharp
+
+```bash
+mcs -target:library \
+  -out:CefSharp.dll \
+  CefSharp-stub.cs
+
+mcs -target:library \
+  -out:CefSharp.Core.dll \
+  -r:CefSharp.dll \
+  -r:System.Net.Http.dll \
+  CefSharp-Core-stub.cs
+
+mcs -target:library \
+  -out:CefSharp.WinForms.dll \
+  -r:CefSharp.dll \
+  -r:CefSharp.Core.dll \
+  CefSharp-WinForms-stub.cs
+```
+
+Le warning `CS0067` concernant JavascriptObjectRepository.ResolveObject peut être ignoré.
+
+Les trois DLL produites doivent rester dans le répertoire courant, à côté de captvty-cli.exe et captvty-provider.exe.
+
+### 6. Compiler la CLI
 
 ```bash
 mcs \
@@ -216,8 +272,12 @@ Captvty-cli-engine.exe
 Captvty-cli-engine-m6.exe
 captvty-provider.exe
 captvty-cli.exe
+CefSharp.dll
+CefSharp.Core.dll
+CefSharp.WinForms.dll
 bin/
 ```
+
 
 Les autres DLL et fichiers nécessaires à Captvty doivent rester présents dans son installation.
 
@@ -228,7 +288,7 @@ La chaîne complète de construction a été testée depuis un clone propre du d
 Avant le premier test :
 
 ```bash
-export MONO_PATH="$PWD/bin:$PWD/bin/cefsharp"
+export MONO_PATH="$PWD:$PWD/bin"
 ```
 
 Par exemple :
@@ -244,7 +304,7 @@ Avant de lancer la CLI, définissez `MONO_PATH` pour permettre à Mono de trouve
 Depuis le répertoire d'installation de Captvty :
 
 ```bash
-export MONO_PATH="$PWD/bin:$PWD/bin/cefsharp"
+export MONO_PATH="$PWD:$PWD/bin"
 ```
 
 Les principales commandes sont :
@@ -390,7 +450,7 @@ captvty-cache.json
 
 Lorsqu'une chaîne rencontre un timeout ou une erreur pendant `update`, son ancien contenu de cache est conservé.
 
-##la structure du fichier captvty-cli.json##
+## la structure du fichier captvty-cli.json
 
 update construit le catalogue local. 
 
@@ -911,7 +971,7 @@ jq '
 </strong>
 </pre>
 
-## Vérification d'un fichier .ts téléchargé##
+## Vérification d'un fichier .ts téléchargé
 
 Un téléchargement terminé avec succès ne signifie pas nécessairement que la vidéo est déchiffrée et lisible.
 
