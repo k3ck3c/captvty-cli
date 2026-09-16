@@ -317,6 +317,29 @@ mono captvty-cli.exe [--timeout secondes] info "texte"
 mono captvty-cli.exe [--timeout secondes] info "chaîne" "texte"
 mono captvty-cli.exe [--timeout secondes] get "chaîne" "titre" "sous-titre" high
 ```
+### Diagnostic du provider
+
+Le provider peut être interrogé directement pour diagnostiquer le
+chargement d'une chaîne.
+
+Compter les émissions chargées :
+
+    MONO_PATH="$PWD:$PWD/bin" mono captvty-provider.exe catalog \
+      Captvty-cli-engine.exe "France 2"
+
+Exemple :
+
+    COUNT   France 2   3327
+
+Afficher le catalogue brut utilisé par `update` :
+
+    MONO_PATH="$PWD:$PWD/bin" mono captvty-provider.exe dump \
+      Captvty-cli-engine.exe "France 2" ""
+
+La commande `dump` émet une ligne `ITEM` par émission.
+
+Ces commandes sont principalement destinées au diagnostic et ne font
+pas partie de l'interface utilisateur normale de `captvty-cli`.
 
 ## Timeout
 
