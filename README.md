@@ -205,7 +205,7 @@ mcs \
 mcs \
   -r:$CECIL \
   -out:captvty-cli.exe \
-  captvty-cli-v2.4.1.cs
+  captvty-cli-v2.5.0.cs
 ```
 
 À l'issue de la compilation, le répertoire d'exécution contient notamment :
@@ -949,6 +949,18 @@ Les principales valeurs utilisées sont :
 
 Certains codes retournés par le worker Captvty peuvent aussi être propagés directement.
 
+## Version 2.5.0
+
+Principales évolutions :
+
+- téléchargement `get` fonctionnel sous Mono avec les shims CefSharp ;
+- ajout des sources `CefSharp-stub.cs`, `CefSharp-Core-stub.cs` et `CefSharp-WinForms-stub.cs` ;
+- correction de la course concurrente rencontrée avec le provider BFMTV via `patch-bfmtv-hashset.cs` ;
+- conservation de l ancien cache lorsqu un provider termine normalement mais retourne une liste vide ;
+- amélioration de la recherche sur les combinaisons titre / sous-titre / épisode ;
+- normalisation du nom du fichier après téléchargement ;
+- qualité de téléchargement actuellement prise en charge : `high`.
+
 ## Version 2.4.1
 
 Principales évolutions :
@@ -964,11 +976,11 @@ Principales évolutions :
 
 ## SHA-256
 
-Source `captvty-cli-v2.4.1.cs` :
+Source `captvty-cli-v2.5.0.cs` :
 
 ```text
-sha256sum captvty-cli-v2.4.1.cs
-5c82f099b9122a06f2d5dbedbbff810fcfa7f57c2879bf1478418ab2f50b6a07  captvty-cli-v2.4.1.cs
+sha256sum captvty-cli-v2.5.0.cs
+596b862f0351b442156c57d0139a1528a280f45b22c1c4bea857a99f77d41f46  captvty-cli-v2.5.0.cs
 ```
 
 ## Remarque

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -155,15 +156,26 @@ class CaptvtyProvider
             string subtitle = Str(emission, "_K8b");
             string episode = Str(emission, "_Kq");
 
+
+            string titleSubtitle =
+                title + " - " + subtitle;
+
+            string titleEpisode =
+                title + " - " + episode;
+
             if (!ContainsText(title, titleWanted) &&
                 !ContainsText(subtitle, titleWanted) &&
-                !ContainsText(episode, titleWanted))
+                !ContainsText(episode, titleWanted) &&
+                !ContainsText(titleSubtitle, titleWanted) &&
+                !ContainsText(titleEpisode, titleWanted))
                 continue;
 
             if (!String.IsNullOrEmpty(subtitleWanted) &&
                 !ContainsText(title, subtitleWanted) &&
                 !ContainsText(subtitle, subtitleWanted) &&
-                !ContainsText(episode, subtitleWanted))
+                !ContainsText(episode, subtitleWanted) &&
+                !ContainsText(titleSubtitle, subtitleWanted) &&
+                !ContainsText(titleEpisode, subtitleWanted))
                 continue;
 
             count++;
@@ -194,6 +206,57 @@ class CaptvtyProvider
             return v == null ? "" : Convert.ToString(v);
         }
         catch { return ""; }
+    }
+
+    static string SanitizeDownloadedFile(string path)
+    {
+        if (String.IsNullOrEmpty(path) || !File.Exists(path))
+            return path;
+
+        string dir = Path.GetDirectoryName(path);
+        string name = Path.GetFileName(path);
+        StringBuilder b = new StringBuilder(name.Length);
+        bool underscore = false;
+
+        foreach (char ch in name)
+        {
+            if (Char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.')
+            {
+                b.Append(ch);
+                underscore = false;
+            }
+            else if (!underscore)
+            {
+                b.Append('_');
+                underscore = true;
+            }
+        }
+
+        string clean = b.ToString().Trim('_');
+
+        while (clean.Contains("_."))
+            clean = clean.Replace("_.", ".");
+
+        if (clean.Length == 0 || clean == name)
+            return path;
+
+        string target = String.IsNullOrEmpty(dir) ? clean : Path.Combine(dir, clean);
+        if (File.Exists(target))
+        {
+            string ext = Path.GetExtension(clean);
+            string stem = Path.GetFileNameWithoutExtension(clean);
+            int n = 2;
+            do
+            {
+                string candidate = stem + "_" + n + ext;
+                target = String.IsNullOrEmpty(dir) ? candidate : Path.Combine(dir, candidate);
+                n++;
+            }
+            while (File.Exists(target));
+        }
+
+        File.Move(path, target);
+        return target;
     }
 
     static int RunGet(
@@ -267,10 +330,21 @@ class CaptvtyProvider
 
             if (state == 7)
             {
+                string finalPath = DownloadPath(item);
+                try
+                {
+                    finalPath = SanitizeDownloadedFile(finalPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(
+                        "Renommage impossible: " + ex.Message);
+                }
+
                 Console.WriteLine(
                     "DOWNLOAD\t" + Clean(channel) + "\t" +
                     Clean(representative) + "\t" +
-                    Clean(DownloadPath(item)));
+                    Clean(finalPath));
                 Console.Out.Flush();
                 return 0;
             }
@@ -353,6 +427,7 @@ class CaptvtyProvider
             foreach (object channel in channels)
             {
                 string name = Str(channel, "_b9A");
+
                 if (String.Equals(
                     name, wantedChannel,
                     StringComparison.CurrentCultureIgnoreCase))
@@ -524,9 +599,17 @@ class CaptvtyProvider
                     string infoSubtitle = Str(infoEmission, "_K8b");
                     string infoEpisode = Str(infoEmission, "_Kq");
 
+                    string infoTitleSubtitle =
+                        infoTitle + " - " + infoSubtitle;
+
+                    string infoTitleEpisode =
+                        infoTitle + " - " + infoEpisode;
+
                     if (!ContainsText(infoTitle, query) &&
                         !ContainsText(infoSubtitle, query) &&
-                        !ContainsText(infoEpisode, query))
+                        !ContainsText(infoEpisode, query) &&
+                        !ContainsText(infoTitleSubtitle, query) &&
+                        !ContainsText(infoTitleEpisode, query))
                         continue;
 
                     emissionNo++;
