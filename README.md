@@ -802,7 +802,7 @@ _drm_software.mpd
 </strong>
 </pre>
 
-## Un peu de documentation sur le fichier catvty-cache.json
+## Un peu de documentation sur le fichier captvty-cache.json
 
 Clés de premier niveau
 <pre>
