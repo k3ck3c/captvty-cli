@@ -48,6 +48,37 @@ echo "$CECIL"
 
 Par exemple, le test sur Debian 12 utilise Mono.Cecil `0.11.0.0`, alors qu'une installation Debian 13 peut disposer de `0.11.1.0`.
 
+## Installation rapide
+
+Captvty 3.0.1.26 doit déjà être présent sur la machine.
+
+Cloner le dépôt :
+
+```bash
+git clone https://github.com/k3ck3c/captvty-cli.git
+cd captvty-cli
+```
+
+Puis lancer :
+
+```bash
+./install.sh
+```
+
+Le script demande le répertoire contenant l'installation originale de
+Captvty 3.0.1.26. Il vérifie notamment la présence de `Captvty.exe`,
+`Captvty.exe.config` et `bin/`, ainsi que Mono, `mcs` et Mono.Cecil.
+
+Il reconstruit ensuite Captvty CLI dans un répertoire temporaire, vérifie
+le binaire obtenu, sauvegarde les éventuels fichiers d'une installation
+précédente, puis installe Captvty CLI dans le répertoire choisi.
+
+Le répertoire peut également être indiqué directement :
+
+```bash
+./install.sh /chemin/vers/Captvty
+```
+
 ## Construction depuis les sources
 
 Le dépôt ne fournit pas `Captvty.exe`.
@@ -227,6 +258,7 @@ La CLI utilise par défaut `Captvty-cli-engine.exe`.
 
 ```bash
 mcs \
+  -r:System.Web.Extensions \
   -out:captvty-provider.exe \
   captvty-provider.cs
 ```
@@ -261,7 +293,7 @@ Les trois DLL produites doivent rester dans le répertoire courant, à côté de
 mcs \
   -r:$CECIL \
   -out:captvty-cli.exe \
-  captvty-cli-v2.5.0.cs
+  captvty-cli-v2.6.0.cs
 ```
 
 À l'issue de la compilation, le répertoire d'exécution contient notamment :
@@ -1031,6 +1063,28 @@ Les principales valeurs utilisées sont :
 - `3` : cache absent ou vide pour une recherche locale.
 
 Certains codes retournés par le worker Captvty peuvent aussi être propagés directement.
+
+## Version 2.6.0
+
+La version 2.6.0 apporte principalement :
+
+- une installation simplifiée avec `install.sh`, avec vérification de
+  l'installation Captvty, compilation automatique, sauvegarde de
+  l'installation précédente et installation des fichiers générés ;
+- l'option globale `--timeout`, avec des délais par défaut adaptés aux
+  différentes opérations et `--timeout 0` pour désactiver la limite ;
+- l'affichage de la durée des émissions dans les résultats de `info` ;
+- une estimation plus réaliste de la taille des téléchargements, tenant
+  compte des pistes audio supplémentaires présentes dans les playlists
+  HLS et de la marge utilisée par Captvty ; ces tailles sont indiquées
+  comme `(estimé)` ;
+- la sélection de qualité pour `get` avec `high`, `low` ou le numéro
+  d'une qualité particulière ;
+- une interface terminal avec `captvty-tui.py` ;
+- l'option `--version` pour afficher la version installée.
+
+La version 2.6.0 conserve les correctifs de compatibilité Mono ainsi que
+les patchs spécifiques nécessaires notamment pour BFMTV et M6.
 
 ## Version 2.5.0
 

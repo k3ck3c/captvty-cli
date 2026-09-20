@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -259,9 +260,31 @@ class CaptvtyProvider
         return target;
     }
 
+    static int CompareMediaForGet(object x, object y, object best)
+    {
+        bool xb = Object.ReferenceEquals(x, best);
+        bool yb = Object.ReferenceEquals(y, best);
+
+        if (xb != yb)
+            return xb ? -1 : 1;
+
+        int xw, xh, yw, yh;
+        GetSize(x, out xw, out xh);
+        GetSize(y, out yw, out yh);
+
+        long px = (long)xw * xh;
+        long py = (long)yw * yh;
+
+        int c = py.CompareTo(px);
+        return c != 0
+            ? c
+            : IntValue(y, "_iUb").CompareTo(IntValue(x, "_iUb"));
+    }
+
     static int RunGet(
         Assembly a, object emission,
-        string channel, string representative)
+        string channel, string representative,
+        string quality)
     {
         WaitTask(Call(emission, "_z7b", false));
 
@@ -273,16 +296,50 @@ class CaptvtyProvider
             catch { }
         }
 
-        object best = Call(emission, "_YcB");
-        if (best == null)
+        List<object> medias = ToList(Call(emission, "_3x"));
+
+        object currentBest = Call(emission, "_YcB");
+
+        medias.Sort(delegate(object x, object y)
+        {
+            return CompareMediaForGet(x, y, currentBest);
+        });
+
+        object selected = null;
+
+        if (String.Equals(quality, "high", StringComparison.OrdinalIgnoreCase))
+        {
+            selected = currentBest;
+        }
+        else if (String.Equals(quality, "low", StringComparison.OrdinalIgnoreCase))
+        {
+            if (medias.Count > 0)
+                selected = medias[medias.Count - 1];
+        }
+        else
+        {
+            int n;
+            if (!Int32.TryParse(quality, out n) ||
+                n < 1 || n > medias.Count)
+            {
+                Console.Error.WriteLine(
+                    "Qualité invalide: " + quality +
+                    " (attendu: high, low ou 1.." + medias.Count + ")");
+                return 2;
+            }
+
+            selected = medias[n - 1];
+        }
+
+        if (selected == null)
         {
             Console.Error.WriteLine("Aucun média téléchargeable");
             return 4;
         }
 
         int w, h;
-        GetSize(best, out w, out h);
-        int bitrate = IntValue(best, "_iUb");
+        GetSize(selected, out w, out h);
+        int bitrate = IntValue(selected, "_iUb");
 
         Console.WriteLine(
             "GETMEDIA\t" + Clean(channel) + "\t" +
@@ -291,7 +348,7 @@ class CaptvtyProvider
         Console.Out.Flush();
 
         Type rha = a.GetType("_RHA", true);
-        object engine = CallStatic(rha, "_PjB", best, false);
+        object engine = CallStatic(rha, "_PjB", selected, false);
 
         if (engine == null)
         {
@@ -308,7 +365,7 @@ class CaptvtyProvider
             return 6;
         }
 
-        object item = ctor.Invoke(new object[] { best, engine });
+        object item = ctor.Invoke(new object[] { selected, engine });
 
         Type ipa = a.GetType("_iPA", true);
         CallStatic(ipa, "_D2", item);
@@ -365,6 +422,128 @@ class CaptvtyProvider
         }
     }
 
+    class AudioRendition
+    {
+        public string GroupId;
+        public string Language;
+        public string Uri;
+        public int BitrateKbps;
+        public bool IsDefault;
+    }
+
+    static string HlsAttribute(string line, string name)
+    {
+        string key = name + "=";
+        int p = line.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+        if (p < 0) return "";
+
+        p += key.Length;
+        if (p >= line.Length) return "";
+
+        if (line[p] == '"')
+        {
+            int e = line.IndexOf('"', p + 1);
+            return e < 0 ? "" : line.Substring(p + 1, e - p - 1);
+        }
+
+        int comma = line.IndexOf(',', p);
+        if (comma < 0) comma = line.Length;
+
+        return line.Substring(p, comma - p);
+    }
+
+    static int AudioBitrateKbps(string groupId, string uri)
+    {
+        if (!String.IsNullOrEmpty(groupId))
+        {
+            int dash = groupId.LastIndexOf('-');
+            if (dash >= 0 && dash + 1 < groupId.Length)
+            {
+                int n;
+                if (Int32.TryParse(groupId.Substring(dash + 1), out n) &&
+                    n > 0 && n < 2000)
+                    return n;
+            }
+        }
+
+        if (!String.IsNullOrEmpty(uri))
+        {
+            int eq = uri.LastIndexOf('=');
+            if (eq >= 0)
+            {
+                int end = uri.IndexOf('.', eq);
+                if (end < 0) end = uri.Length;
+
+                int bps;
+                if (Int32.TryParse(
+                        uri.Substring(eq + 1, end - eq - 1), out bps) &&
+                    bps > 0)
+                    return bps / 1000;
+            }
+        }
+
+        return 0;
+    }
+
+    static List<AudioRendition> ParseAudioRenditions(string text)
+    {
+        List<AudioRendition> result = new List<AudioRendition>();
+
+        using (StringReader sr = new StringReader(text))
+        {
+            string line;
+
+            while ((line = sr.ReadLine()) != null)
+            {
+                if (!line.StartsWith(
+                        "#EXT-X-MEDIA:", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!String.Equals(
+                        HlsAttribute(line, "TYPE"), "AUDIO",
+                        StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string group = HlsAttribute(line, "GROUP-ID");
+                string language = HlsAttribute(line, "LANGUAGE");
+                string uri = HlsAttribute(line, "URI");
+
+                result.Add(new AudioRendition {
+                    GroupId = group,
+                    Language = language,
+                    Uri = uri,
+                    BitrateKbps = AudioBitrateKbps(group, uri),
+                    IsDefault = String.Equals(
+                        HlsAttribute(line, "DEFAULT"), "YES",
+                        StringComparison.OrdinalIgnoreCase)
+                });
+            }
+        }
+
+        return result;
+    }
+
+    static List<AudioRendition> GetAudioRenditions(string masterUri)
+    {
+        if (String.IsNullOrEmpty(masterUri))
+            return new List<AudioRendition>();
+
+        try
+        {
+            using (WebClient wc = new WebClient())
+            {
+                wc.Encoding = Encoding.UTF8;
+                string text = wc.DownloadString(masterUri);
+                return ParseAudioRenditions(text);
+            }
+        }
+        catch
+        {
+            // Size estimation must never make info fail.
+            return new List<AudioRendition>();
+        }
+    }
+
     static int Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -389,9 +568,15 @@ class CaptvtyProvider
 
             subtitleWanted = args[4];
 
-            if (!String.Equals(args[5], "high", StringComparison.OrdinalIgnoreCase))
+            string quality = args[5];
+            int qualityNo;
+            if (!String.Equals(quality, "high", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(quality, "low", StringComparison.OrdinalIgnoreCase) &&
+                (!Int32.TryParse(quality, out qualityNo) || qualityNo < 1))
             {
-                Console.Error.WriteLine("V1: seule la qualité high est supportée");
+                Console.Error.WriteLine(
+                    "Qualité invalide: " + quality +
+                    " (attendu: high, low ou numéro >= 1)");
                 return 2;
             }
         }
@@ -614,84 +799,6 @@ class CaptvtyProvider
 
                     emissionNo++;
 
-                    if (Environment.GetEnvironmentVariable("CAPTVTY_MEDIA_PROBE") == "1")
-                    {
-                        object backend = null;
-                        try { backend = Call(selectedChannel, "_qH"); } catch { }
-
-                        Console.WriteLine("TYPE\tprovider\t" +
-                            (provider == null ? "<null>" : provider.GetType().FullName));
-                        Console.WriteLine("TYPE\tbackend\t" +
-                            (backend == null ? "<null>" : backend.GetType().FullName));
-                        Console.WriteLine("TYPE\temission\t" +
-                            (infoEmission == null ? "<null>" : infoEmission.GetType().FullName));
-
-                        object probeYtb = null;
-                        object probeTzb = null;
-                        object probeIlb = null;
-                        try
-                        {
-                            FieldInfo probeIlbField = infoEmission.GetType().GetField(
-                                "_ilB",
-                                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                            if (probeIlbField != null)
-                                probeIlb = probeIlbField.GetValue(infoEmission);
-                        }
-                        catch { }
-                        try { probeYtb = Call(infoEmission, "_YTB"); } catch { }
-                        try { probeTzb = Call(infoEmission, "_TZB"); } catch { }
-                        Console.WriteLine("TYPE\tYTB\t" +
-                            (probeYtb == null ? "<null>" : probeYtb.ToString()));
-                        Console.WriteLine("TYPE\tTZB\t" +
-                            (probeTzb == null ? "<null>" : probeTzb.ToString()));
-                        Console.WriteLine("TYPE\tilB\t" +
-                            (probeIlb == null ? "<null>" : probeIlb.ToString()));
-
-                        try
-                        {
-                            if (backend != null && probeYtb != null)
-                            {
-                                object taskUrl = Call(backend, "_aEb", probeYtb, false);
-                                WaitTask(taskUrl);
-
-                                object resultUrl = taskUrl.GetType()
-                                    .GetProperty("Result")
-                                    .GetValue(taskUrl, null);
-
-                                Console.WriteLine("DIRECT\t_aEb\t" +
-                                    (resultUrl == null ? "<null>" : ToList(resultUrl).Count.ToString()));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine("DIRECT\t_aEb\tERROR\t" +
-                                ex.GetType().Name + "\t" + ex.Message);
-                        }
-
-                        try
-                        {
-                            if (backend != null && probeTzb != null)
-                            {
-                                object taskId = Call(backend, "_01B", probeTzb.ToString(), false);
-                                WaitTask(taskId);
-
-                                object resultId = taskId.GetType()
-                                    .GetProperty("Result")
-                                    .GetValue(taskId, null);
-
-                                Console.WriteLine("DIRECT\t_01B\t" +
-                                    (resultId == null ? "<null>" : ToList(resultId).Count.ToString()));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine("DIRECT\t_01B\tERROR\t" +
-                                ex.GetType().Name + "\t" + ex.Message);
-                        }
-
-                        Console.Out.Flush();
-                    }
-
                     Console.WriteLine(
                         "EMISSION\t" + Clean(selectedName) + "\t" +
                         emissionNo + "\t" +
@@ -700,61 +807,25 @@ class CaptvtyProvider
 
                     try
                     {
-                        bool probe = Environment.GetEnvironmentVariable("CAPTVTY_MEDIA_PROBE") == "1";
-
-                        if (probe)
-                        {
-                            List<object> p0 = ToList(Call(infoEmission, "_3x"));
-                            Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                emissionNo + "\tbefore_BD\t" + p0.Count);
-                            Console.Out.Flush();
-
-                            try
-                            {
-                                object bdTask = Call(infoEmission, "_BD");
-                                WaitTask(bdTask);
-                                List<object> p1 = ToList(Call(infoEmission, "_3x"));
-                                Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                    emissionNo + "\tafter_BD\t" + p1.Count);
-                            }
-                            catch (Exception bdEx)
-                            {
-                                Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                    emissionNo + "\tBD_ERROR\t" +
-                                    Clean(bdEx.GetType().Name + ": " + bdEx.Message));
-                            }
-                            Console.Out.Flush();
-                        }
-
-                        if (probe)
-                        {
-                            try
-                            {
-                                object detailTask = Call(provider, "_EcA", infoEmission);
-                                WaitTask(detailTask);
-                                List<object> pd = ToList(Call(infoEmission, "_3x"));
-                                Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                    emissionNo + "\tafter_EcA\t" + pd.Count);
-                            }
-                            catch (Exception detailEx)
-                            {
-                                Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                    emissionNo + "\tEcA_ERROR\t" +
-                                    Clean(detailEx.GetType().Name + ": " + detailEx.Message));
-                            }
-                            Console.Out.Flush();
-                        }
-
                         WaitTask(Call(infoEmission, "_z7b", false));
 
-                        List<object> before = ToList(Call(infoEmission, "_3x"));
-
-                        if (probe)
+                        try
                         {
-                            Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                emissionNo + "\tafter_z7b\t" + before.Count);
-                            Console.Out.Flush();
+                            object v = Call(infoEmission, "_uQ");
+                            Console.WriteLine(
+                                "DURATION\t" + Clean(selectedName) + "\t" +
+                                emissionNo + "\t" +
+                                (v == null ? "NULL" :
+                                    ((long)((TimeSpan)v).TotalSeconds).ToString()));
                         }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(
+                                "DURATION_ERROR\t" +
+                                Clean(ex.GetType().Name + ": " + ex.Message));
+                        }
+
+                        List<object> before = ToList(Call(infoEmission, "_3x"));
 
                         foreach (object media in before)
                         {
@@ -763,12 +834,33 @@ class CaptvtyProvider
 
                         List<object> medias = ToList(Call(infoEmission, "_3x"));
 
-                        if (probe)
+                        // HLS audio renditions are common to the qualities of
+                        // this emission. Read the master playlist only once.
+                        if (medias.Count > 0)
                         {
-                            Console.WriteLine("PROBE\t" + Clean(selectedName) + "\t" +
-                                emissionNo + "\tafter_bf\t" + medias.Count);
-                            Console.Out.Flush();
+                            try
+                            {
+                                object master = Call(medias[0], "_lWA");
+                                if (master != null)
+                                {
+                                    foreach (AudioRendition ar in
+                                        GetAudioRenditions(master.ToString()))
+                                    {
+                                        Console.WriteLine(
+                                            "AUDIO\t" + Clean(selectedName) + "\t" +
+                                            emissionNo + "\t" +
+                                            Clean(ar.Language) + "\t" +
+                                            ar.BitrateKbps + "\t" +
+                                            (ar.IsDefault ? "1" : "0"));
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                // Audio metadata is optional for size estimation.
+                            }
                         }
+
                         object best = null;
                         try { best = Call(infoEmission, "_YcB"); } catch { }
 
@@ -808,7 +900,8 @@ class CaptvtyProvider
                 return 9;
             }
 
-            return RunGet(a, emission, selectedName, representative);
+            return RunGet(
+                a, emission, selectedName, representative, args[5]);
         }
         catch (Exception ex)
         {
