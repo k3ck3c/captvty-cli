@@ -506,10 +506,28 @@ class CaptvtyCli
         public YtDlpInfo Info;
     }
 
+    static string FindYtDlp()
+    {
+        string exeDir =
+            Path.GetDirectoryName(
+                Assembly.GetExecutingAssembly().Location);
+
+        if (!String.IsNullOrEmpty(exeDir))
+        {
+            string privateYtDlp = Path.Combine(
+                exeDir, ".ytdlp-venv/bin/yt-dlp");
+
+            if (File.Exists(privateYtDlp))
+                return privateYtDlp;
+        }
+
+        return "yt-dlp";
+    }
+
     static WorkerRun RunYtDlp(string arguments, int timeoutMs)
     {
         ProcessStartInfo psi = new ProcessStartInfo();
-        psi.FileName = "yt-dlp";
+        psi.FileName = FindYtDlp();
         psi.Arguments = arguments;
         psi.UseShellExecute = false;
         psi.RedirectStandardOutput = true;
@@ -889,7 +907,22 @@ class CaptvtyCli
     static int RunGetT18(
         string title, string subtitle, string quality, int timeoutMs)
     {
-        List<T18Program> programs = FetchT18Programs(timeoutMs);
+        List<T18Program> programs;
+
+        try
+        {
+            if (Environment.GetEnvironmentVariable(
+                    "CAPTVTY_TEST_T18_FETCH_FAIL") == "1")
+                throw new Exception(
+                    "[TEST] échec simulé de récupération T18");
+            programs = FetchT18Programs(timeoutMs);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                "Recherche T18 impossible: " + ex.Message);
+            return 7;
+        }
         List<T18Program> matches = new List<T18Program>();
 
         foreach (T18Program program in programs)

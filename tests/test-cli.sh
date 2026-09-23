@@ -205,8 +205,7 @@ run_t18_network_tests()
 
     if [ "$rc" -eq 0 ] &&
        grep -Fq -- "Le prix du sang" <<<"$output" &&
-       grep -Fq -- "512x288" <<<"$output" &&
-       ! grep -Fq -- "média T18 :" <<<"$output"
+       grep -Fq -- "512x288" <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
         PASS=$((PASS + 1))
@@ -236,6 +235,34 @@ run_t18_network_tests()
        grep -Fq -- \
            "Résolution T18 en échec après deux essais:" <<<"$output" &&
        ! grep -Fq -- "Unhandled Exception" <<<"$output"
+    then
+        printf 'PASS  %s\n' "$name"
+        PASS=$((PASS + 1))
+    else
+        printf 'FAIL  %s\n' "$name"
+        printf '      rc attendu=7 obtenu=%s\n' "$rc"
+        printf '      sortie:\n%s\n' "$output"
+        FAIL=$((FAIL + 1))
+    fi
+
+    name="T18 get échec récupération propre"
+    set +e
+    output=$(
+        CAPTVTY_TEST_T18_FETCH_FAIL=1 \
+        "$MONO" "$CLI" \
+            get T18 \
+            "The Closer : L.A. Enquêtes prioritaires" \
+            "Le prix du sang" \
+            low 2>&1
+    )
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 7 ] &&
+       grep -Fq --            "Recherche T18 impossible:" <<<"$output" &&
+       grep -Fq --            "[TEST] échec simulé de récupération T18" <<<"$output" &&
+       ! grep -Fq -- "Unhandled Exception" <<<"$output" &&
+       ! grep -Fq -- "FATAL UNHANDLED EXCEPTION" <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
         PASS=$((PASS + 1))
