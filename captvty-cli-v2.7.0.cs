@@ -139,6 +139,25 @@ class CaptvtyCli
         return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
+    static void SetWorkerMonoPath(ProcessStartInfo psi)
+    {
+        string exeDir = Path.GetDirectoryName(
+            Assembly.GetExecutingAssembly().Location);
+
+        if (String.IsNullOrEmpty(exeDir))
+            return;
+
+        string monoPath =
+            exeDir + Path.PathSeparator +
+            Path.Combine(exeDir, "bin");
+
+        string old = Environment.GetEnvironmentVariable("MONO_PATH");
+        if (!String.IsNullOrEmpty(old))
+            monoPath += Path.PathSeparator + old;
+
+        psi.EnvironmentVariables["MONO_PATH"] = monoPath;
+    }
+
     static WorkerRun RunWorker(
         string worker, string mode, string engine, string channel,
         string query, int timeoutMs)
@@ -155,6 +174,7 @@ class CaptvtyCli
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
         psi.CreateNoWindow = true;
+        SetWorkerMonoPath(psi);
 
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
@@ -218,6 +238,7 @@ class CaptvtyCli
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
         psi.CreateNoWindow = true;
+        SetWorkerMonoPath(psi);
 
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
@@ -2192,9 +2213,12 @@ class CaptvtyCli
         else
             timeoutMs = timeoutSeconds * 1000;
 
-        string engine = Path.GetFullPath("Captvty-cli-engine.exe");
-        string worker = Path.GetFullPath("captvty-provider.exe");
-        string cache = Path.GetFullPath("captvty-cache.json");
+        string exeDir = Path.GetDirectoryName(
+            Assembly.GetExecutingAssembly().Location);
+
+        string engine = Path.Combine(exeDir, "Captvty-cli-engine.exe");
+        string worker = Path.Combine(exeDir, "captvty-provider.exe");
+        string cache = Path.Combine(exeDir, "captvty-cache.json");
 
         if (String.Equals(mode, "search", StringComparison.OrdinalIgnoreCase))
         {
