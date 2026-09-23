@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.6.0"
+VERSION="2.7.0"
 
 die()
 {
@@ -90,7 +90,7 @@ for f in \
     CefSharp-stub.cs \
     CefSharp-Core-stub.cs \
     CefSharp-WinForms-stub.cs \
-    captvty-cli-v2.6.0.cs \
+    captvty-cli-v2.7.0.cs \
     captvty-tui.py
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
@@ -174,8 +174,9 @@ echo "  OK  shims CefSharp compilés"
 echo
 echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:"$CECIL" \
+    -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.6.0.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.7.0.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 

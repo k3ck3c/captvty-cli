@@ -155,6 +155,98 @@ run_audio_size_test()
     fi
 }
 
+run_t18_network_tests()
+{
+    echo
+    echo "=== Tests réseau T18 ==="
+
+    name="T18 update"
+    set +e
+    output=$("$MONO" "$CLI" update T18 2>&1)
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 0 ] &&
+       grep -Fq -- "T18" <<<"$output" &&
+       grep -Fq -- "OK (" <<<"$output"
+    then
+        printf 'PASS  %s\n' "$name"
+        PASS=$((PASS + 1))
+    else
+        printf 'FAIL  %s\n' "$name"
+        printf '      rc=%s\n' "$rc"
+        printf '      sortie:\n%s\n' "$output"
+        FAIL=$((FAIL + 1))
+    fi
+
+    name="T18 list"
+    set +e
+    output=$("$MONO" "$CLI" list T18 "Closer" 2>&1)
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 0 ] &&
+       grep -Fq -- "The Closer" <<<"$output"
+    then
+        printf 'PASS  %s\n' "$name"
+        PASS=$((PASS + 1))
+    else
+        printf 'FAIL  %s\n' "$name"
+        printf '      rc=%s\n' "$rc"
+        printf '      sortie:\n%s\n' "$output"
+        FAIL=$((FAIL + 1))
+    fi
+
+    name="T18 info"
+    set +e
+    output=$("$MONO" "$CLI" info T18 "Closer" 2>&1)
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 0 ] &&
+       grep -Fq -- "Le prix du sang" <<<"$output" &&
+       grep -Fq -- "512x288" <<<"$output" &&
+       ! grep -Fq -- "média T18 :" <<<"$output"
+    then
+        printf 'PASS  %s\n' "$name"
+        PASS=$((PASS + 1))
+    else
+        printf 'FAIL  %s\n' "$name"
+        printf '      rc=%s\n' "$rc"
+        printf '      sortie:\n%s\n' "$output"
+        FAIL=$((FAIL + 1))
+    fi
+
+    name="T18 get échec résolution propre"
+    set +e
+    output=$(
+        CAPTVTY_TEST_T18_RESOLVE_FAIL=1 \
+        "$MONO" "$CLI" \
+            get T18 \
+            "The Closer : L.A. Enquêtes prioritaires" \
+            "Le prix du sang" \
+            low 2>&1
+    )
+    rc=$?
+    set -e
+
+    if [ "$rc" -eq 7 ] &&
+       grep -Fq -- \
+           "Première résolution T18 en échec:" <<<"$output" &&
+       grep -Fq -- \
+           "Résolution T18 en échec après deux essais:" <<<"$output" &&
+       ! grep -Fq -- "Unhandled Exception" <<<"$output"
+    then
+        printf 'PASS  %s\n' "$name"
+        PASS=$((PASS + 1))
+    else
+        printf 'FAIL  %s\n' "$name"
+        printf '      rc attendu=7 obtenu=%s\n' "$rc"
+        printf '      sortie:\n%s\n' "$output"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
 echo "=== Tests Captvty CLI ==="
 
 # ------------------------------------------------------------
@@ -206,7 +298,7 @@ run_test \
 run_test \
     "--version" \
     0 \
-    "captvty-cli 2.6.0" \
+    "captvty-cli 2.7.0" \
     --version
 
 
@@ -251,6 +343,13 @@ run_test \
 run_missing_dependency_test
 run_cached_search_without_runtime_test
 run_audio_size_test
+
+if [ "${TEST_NETWORK:-0}" = "1" ]; then
+    run_t18_network_tests
+else
+    echo
+    echo "Tests réseau T18 ignorés (TEST_NETWORK=1 pour les activer)"
+fi
 
 echo
 echo "=== Résultat ==="

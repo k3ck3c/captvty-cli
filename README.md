@@ -293,7 +293,8 @@ Les trois DLL produites doivent rester dans le répertoire courant, à côté de
 mcs \
   -r:$CECIL \
   -out:captvty-cli.exe \
-  captvty-cli-v2.6.0.cs
+  -r:System.Web.Extensions \
+  captvty-cli-v2.7.0.cs
 ```
 
 À l'issue de la compilation, le répertoire d'exécution contient notamment :
