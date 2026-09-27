@@ -2,6 +2,20 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.7.0
+
+La version **2.7.0** ajoute notamment le support des replays de **T18**.
+
+Principales nouveautés :
+
+- récupération du catalogue des replays T18 ;
+- téléchargement des émissions T18 ;
+- utilisation de `yt-dlp` pour les flux T18 ;
+- création automatique par `install.sh` d'un environnement Python dédié à `yt-dlp` ;
+- résolution automatique des assemblies locales : `MONO_PATH` n'est plus nécessaire.
+
+Le support T18 a été validé sous Linux avec Captvty 3.0.1.26.
+
 Le projet fournit notamment :
 
 - recherche d'émissions ;
@@ -72,6 +86,9 @@ Captvty 3.0.1.26. Il vérifie notamment la présence de `Captvty.exe`,
 Il reconstruit ensuite Captvty CLI dans un répertoire temporaire, vérifie
 le binaire obtenu, sauvegarde les éventuels fichiers d'une installation
 précédente, puis installe Captvty CLI dans le répertoire choisi.
+
+Pour la version 2.7.0, `install.sh` prépare également un environnement Python
+dédié contenant `yt-dlp`, utilisé notamment pour le téléchargement des replays T18.
 
 Le répertoire peut également être indiqué directement :
 
@@ -318,11 +335,6 @@ Les autres DLL et fichiers nécessaires à Captvty doivent rester présents dans
 
 La chaîne complète de construction a été testée depuis un clone propre du dépôt sur **Debian 12**, à partir du `Captvty.exe` Windows original de Captvty 3.0.1.26.
 
-Avant le premier test :
-
-```bash
-export MONO_PATH="$PWD:$PWD/bin"
-```
 
 Par exemple :
 
@@ -332,13 +344,6 @@ mono captvty-cli.exe --timeout 60 list "France 2" "journal"
 
 ## Utilisation
 
-Avant de lancer la CLI, définissez `MONO_PATH` pour permettre à Mono de trouver les assemblies de Captvty, notamment celles de CefSharp.
-
-Depuis le répertoire d'installation de Captvty :
-
-```bash
-export MONO_PATH="$PWD:$PWD/bin"
-```
 
 Les principales commandes sont :
 
@@ -457,7 +462,7 @@ mono captvty-cli.exe update --all
 [16/54] LCI ... OK (3065)
 [17/54] Franceinfo ... OK (346)
 [18/54] CStar ...  erreur (134) (ancien cache conservé)
-[19/54] T18 ... OK (0)
+[19/54] T18 ... OK (...)
 [20/54] NOVO19 ... OK (0)
 [21/54] TF1 Séries Films ... OK (490)
 [22/54] La chaîne L'Équipe ... OK (110)
@@ -631,6 +636,22 @@ dans ce cas, indiquer une partie du texte de l'épisode 1
 
 Pendant le téléchargement, la CLI peut afficher l'état Captvty, le média sélectionné et le chemin du fichier final.
 
+### T18
+
+La version 2.7.0 ajoute le support des replays T18.
+
+Mise à jour du catalogue T18 :
+
+```bash
+mono captvty-cli.exe update T18
+```
+
+Lors des tests de la version 2.7.0, cette commande a récupéré **166 replays**.
+
+Les émissions T18 peuvent ensuite être recherchées et téléchargées avec les commandes habituelles `list`, `info` et `get`.
+
+Pour T18, la CLI utilise `yt-dlp` pour récupérer le média. L’environnement nécessaire est préparé automatiquement par `install.sh`.
+
 ## Installation et fichiers utilisés
 
 Placez les fichiers compilés dans le répertoire contenant l'installation de Captvty.
@@ -761,17 +782,11 @@ RMC Découverte  empty
 RMC Life        empty
 RMC Story       empty
 RTL-TVI         empty
-T18             empty
 Tipik           empty
 TV5 Monde       empty</strong>
 </pre>
 
 Rechercher une émission parmi tous les replays, par exemple looming tower
-(la commande 
-
-mono captvty-cli.exe search "looming tower"
-
-sera disponible dans la version 2.4.2)
 
 <pre>
 jq -r ' .programs[] | select( ((.title // "") + " " + (.subtitle // "")) | test("looming tower"; "i") ) | [.channel, .title, .subtitle] | @tsv ' captvty-cache.json | column -t -s $'\t'
@@ -931,7 +946,7 @@ jq '.status' captvty-cache.json
   "RTS 1": "empty",
   "RTS 2": "empty",
   "Saint-Pierre et Miquelon La Première": "empty",
-  "T18": "empty",
+  "T18": "ok",
   "TF1": "error",
   "TF1 Séries Films": "error",
   "TFX": "error",
