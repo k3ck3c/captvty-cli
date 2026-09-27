@@ -109,6 +109,37 @@ class CaptvtyCli
         return false;
     }
 
+    static Assembly ResolveLocalAssembly(object sender, ResolveEventArgs args)
+    {
+        string exeDir = Path.GetDirectoryName(
+            Assembly.GetExecutingAssembly().Location);
+
+        if (String.IsNullOrEmpty(exeDir))
+            return null;
+
+        string name;
+
+        try
+        {
+            name = new AssemblyName(args.Name).Name + ".dll";
+        }
+        catch
+        {
+            return null;
+        }
+
+        string[] paths = {
+            Path.Combine(exeDir, name),
+            Path.Combine(exeDir, "bin", name)
+        };
+
+        foreach (string path in paths)
+            if (File.Exists(path))
+                return Assembly.LoadFrom(path);
+
+        return null;
+    }
+
     static List<string> ReadChannels(string enginePath)
     {
         Assembly a = Assembly.LoadFrom(enginePath);
@@ -2158,6 +2189,8 @@ class CaptvtyCli
 
     static int Main(string[] args)
     {
+        AppDomain.CurrentDomain.AssemblyResolve += ResolveLocalAssembly;
+
         Console.OutputEncoding = Encoding.UTF8;
 
         if (args.Length == 1 &&
