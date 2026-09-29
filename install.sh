@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.7.0"
+VERSION="2.7.1"
 
 die()
 {
@@ -57,32 +57,40 @@ check_command()
         die "commande '$1' introuvable"
     printf "  OK  %s : %s\n" "$1" "$(command -v "$1")"
 }
-
+check_command sha256sum
 check_file "Captvty.exe"
+CAPTVTY_30126_SHA256="6e81ed15167d36c5c3b64b5587f310612e2a2890cbfc33b8c982bc0fa2ca282f"
+CAPTVTY_SHA256=$(sha256sum "$CAPTVTY_DIR/Captvty.exe" | awk '{print $1}')
+if [ "$CAPTVTY_SHA256" != "$CAPTVTY_30126_SHA256" ]; then
+    echo
+    echo "ERREUR : Captvty.exe ne correspond pas au binaire"
+    echo "         Captvty 3.0.1.26 attendu par Captvty CLI 2.7.1."
+    echo
+    echo "SHA256 attendu : $CAPTVTY_30126_SHA256"
+    echo "SHA256 trouvé  : $CAPTVTY_SHA256"
+    echo
+    echo "Captvty 3.0.1.27 n'est pas actuellement compatible."
+    echo "Utilisez une installation originale de Captvty 3.0.1.26."
+    exit 1
+fi
+echo "  OK  Captvty 3.0.1.26 vérifié (SHA256)"
 check_file "Captvty.exe.config"
 check_dir  "bin"
-
 check_command mono
 check_command mcs
 check_command python3
 check_command curl
-
 CECIL=$(find /usr/lib/mono/gac/Mono.Cecil \
     -name Mono.Cecil.dll 2>/dev/null |
     sort -V |
     tail -1)
-
 [ -n "$CECIL" ] ||
     die "Mono.Cecil.dll introuvable"
-
 printf "  OK  Mono.Cecil : %s\n" "$CECIL"
-
 echo
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 echo
 echo "Vérification des sources Captvty CLI..."
-
 for f in \
     patch-mono-compat.cs \
     patch-captvty-cli.cs \
@@ -92,7 +100,7 @@ for f in \
     CefSharp-stub.cs \
     CefSharp-Core-stub.cs \
     CefSharp-WinForms-stub.cs \
-    captvty-cli-v2.7.0.cs \
+    captvty-cli-v2.7.1.cs \
     captvty-tui.py
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
@@ -178,7 +186,7 @@ echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:"$CECIL" \
     -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.7.0.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.7.1.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 
@@ -207,7 +215,13 @@ BACKUP_DIR="$CAPTVTY_DIR/captvty-cli-backup-$(date +%Y%m%d-%H%M%S)"
 BACKUP_CREATED=0
 
 # Sauvegarde d'une éventuelle installation précédente.
-for f in "${INSTALL_FILES[@]}" captvty-tui.py
+BACKUP_FILES=("${INSTALL_FILES[@]}")
+
+if [ "$SCRIPT_DIR" != "$CAPTVTY_DIR" ]; then
+    BACKUP_FILES+=(captvty-tui.py)
+fi
+
+for f in "${BACKUP_FILES[@]}"
 do
     if [ -e "$CAPTVTY_DIR/$f" ]; then
         if [ "$BACKUP_CREATED" -eq 0 ]; then
@@ -230,7 +244,10 @@ do
 done
 
 # Le TUI est un script source, il n'est pas compilé.
-cp "$SCRIPT_DIR/captvty-tui.py" "$CAPTVTY_DIR/captvty-tui.py"
+if [ "$SCRIPT_DIR" != "$CAPTVTY_DIR" ]; then
+    cp "$SCRIPT_DIR/captvty-tui.py" "$CAPTVTY_DIR/captvty-tui.py"
+fi
+
 chmod +x "$CAPTVTY_DIR/captvty-tui.py"
 printf "  OK  %s\n" "captvty-tui.py"
 

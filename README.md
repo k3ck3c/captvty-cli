@@ -2,6 +2,15 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.7.1
+
+La version **2.7.1** améliore l'installation :
+
+- vérification SHA256 de `Captvty.exe` avant toute compilation ;
+- vérification que le binaire est bien le **Captvty 3.0.1.26 original** attendu ;
+- message explicite en cas de version incompatible, notamment Captvty 3.0.1.27 ;
+- correction de l'installation lorsque le répertoire source de Captvty CLI est aussi le répertoire de destination.
+
 ## Version 2.7.0
 
 La version **2.7.0** ajoute notamment le support des replays de **T18**.
