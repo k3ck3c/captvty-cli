@@ -2,6 +2,14 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.7.2
+
+La version **2.7.2** améliore la commande `info` :
+
+- refus d'une recherche vide afin d'éviter une interrogation involontaire de l'ensemble du catalogue ;
+- refus d'une recherche vide ciblée sur une chaîne, notamment `info "T18" ""` ;
+- indication explicite qu'une commande comme `info T18` recherche l'émission « T18 » dans toutes les chaînes TV.
+
 ## Version 2.7.1
 
 La version **2.7.1** améliore l'installation :
