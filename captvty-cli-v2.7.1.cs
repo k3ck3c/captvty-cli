@@ -2294,21 +2294,50 @@ class CaptvtyCli
 
         if (String.Equals(mode, "info", StringComparison.OrdinalIgnoreCase))
         {
-            if (args.Length < 2) { Console.Error.WriteLine("Usage: mono captvty-cli.exe info [\"chaîne\"] \"texte\""); return 2; }
+            if (args.Length < 2)
+            {
+                Console.Error.WriteLine("Usage: mono captvty-cli.exe info [\"chaîne\"] \"texte\"");
+                return 2;
+            }
+
+            string infoQuery =
+                args.Length >= 3
+                    ? String.Join(" ", args, 2, args.Length - 2)
+                    : args[1];
+
+            if (String.IsNullOrWhiteSpace(infoQuery))
+            {
+                Console.Error.WriteLine(
+                    "Erreur: le texte de recherche ne peut pas être vide.");
+                Console.Error.WriteLine(
+                    "Usage: mono captvty-cli.exe info [\"chaîne\"] \"texte\"");
+                return 2;
+            }
 
             if (args.Length >= 3 &&
                 String.Equals(args[1], "T18", StringComparison.OrdinalIgnoreCase))
                 return RunTargetedInfoT18(
-                    String.Join(" ", args, 2, args.Length - 2),
+                    infoQuery,
                     timeoutSeconds < 0 ? 600000 : timeoutMs);
+
+            if (args.Length == 2)
+            {
+                Console.WriteLine(
+                    "Recherche de l'émission \"" + infoQuery +
+                    "\" dans toutes les chaînes TV...");
+                Console.WriteLine();
+            }
 
             if (!CheckRuntimeDependencies(engine, worker))
                 return 2;
 
             if (args.Length >= 3)
-                return RunTargetedInfo(args[1], String.Join(" ", args, 2, args.Length - 2), engine, worker, timeoutSeconds < 0 ? 600000 : timeoutMs);
+                return RunTargetedInfo(
+                    args[1], infoQuery, engine, worker,
+                    timeoutSeconds < 0 ? 600000 : timeoutMs);
 
-            return RunSearchOrInfo("info", args[1], engine, worker, timeoutMs);
+            return RunSearchOrInfo(
+                "info", infoQuery, engine, worker, timeoutMs);
         }
 
         if (String.Equals(mode, "get", StringComparison.OrdinalIgnoreCase))
