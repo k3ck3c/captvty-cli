@@ -2,6 +2,21 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.8.0
+
+La version **2.8.0** ajoute le support de **TV5MONDE+**.
+
+Principales nouveautés :
+
+- consultation du catalogue des séries et épisodes TV5MONDE+ ;
+- affichage des langues de sous-titres disponibles pour un épisode ;
+- téléchargement direct des sous-titres WebVTT ;
+- téléchargement d'une ou plusieurs langues ;
+- téléchargement de toutes les langues disponibles avec `all` ;
+- téléchargement du français par défaut lorsqu'aucune langue n'est indiquée.
+
+Les vidéos TV5MONDE+ étant protégées par DRM, cette prise en charge concerne le catalogue et les sous-titres, et non le téléchargement des vidéos.
+
 ## Version 2.7.2
 
 La version **2.7.2** améliore la commande `info` :
@@ -328,7 +343,7 @@ mcs \
   -r:$CECIL \
   -out:captvty-cli.exe \
   -r:System.Web.Extensions \
-  captvty-cli-v2.7.0.cs
+  captvty-cli-v2.8.0.cs
 ```
 
 À l'issue de la compilation, le répertoire d'exécution contient notamment :
@@ -371,6 +386,10 @@ mono captvty-cli.exe [--timeout secondes] list "chaîne" "texte"
 mono captvty-cli.exe [--timeout secondes] info "texte"
 mono captvty-cli.exe [--timeout secondes] info "chaîne" "texte"
 mono captvty-cli.exe [--timeout secondes] get "chaîne" "titre" "sous-titre" high
+
+# TV5MONDE+
+mono captvty-cli.exe [--timeout secondes] info "TV5 Monde" "titre" ["S1 E1"]
+mono captvty-cli.exe [--timeout secondes] get "TV5 Monde" "titre" "S1 E1" [fr|fr,es,...|all]
 ```
 ### Diagnostic du provider
 
@@ -628,6 +647,145 @@ Les médias sont triés en privilégiant :
 1. le média choisi par Captvty ;
 2. la résolution ;
 3. le bitrate.
+
+## TV5MONDE+
+
+La version **2.8.0** ajoute le support du catalogue et des sous-titres de **TV5MONDE+**.
+
+Les vidéos TV5MONDE+ sont protégées par DRM. Captvty CLI ne tente pas de télécharger ou de déchiffrer ces vidéos. Les sous-titres sont en revanche disponibles séparément sous forme de fichiers WebVTT.
+
+### Rechercher une série
+
+```bash
+mono captvty-cli.exe list "TV5 Monde" "Castes"
+```
+
+Exemple :
+
+```text
+Castes, les amours interdites  [107584472_74079A]
+  1. S1 E1 - le rituel du seuil  [107550310_74079A]
+  2. S1 E2 - l annonce et les secrets  [107550311_74079A]
+  ...
+  60. S1 E60 - le dernier nom  [107550369_74079A]
+
+1 série(s)
+```
+
+### Afficher les épisodes
+
+```bash
+mono captvty-cli.exe info "TV5 Monde" "Castes"
+```
+
+### Afficher les sous-titres disponibles
+
+```bash
+mono captvty-cli.exe info "TV5 Monde" "Castes" "S1 E1"
+```
+
+Exemple :
+
+```text
+Castes, les amours interdites
+AssetId série : 107584472_74079A
+
+S1 E1 - le rituel du seuil
+AssetId : 107550310_74079A
+Sous-titres : ln sw de es ar ro en fr
+```
+
+La liste des langues dépend du programme.
+
+### Télécharger les sous-titres
+
+Sans indication de langue, le français est téléchargé par défaut :
+
+```bash
+mono captvty-cli.exe get "TV5 Monde" "Castes" "S1 E1"
+```
+
+La CLI l'indique explicitement :
+
+```text
+Aucune langue indiquée : français (fr) téléchargé par défaut.
+```
+
+Pour demander explicitement le français :
+
+```bash
+mono captvty-cli.exe get "TV5 Monde" "Castes" "S1 E1" fr
+```
+
+Plusieurs langues peuvent être demandées en les séparant par des virgules :
+
+```bash
+mono captvty-cli.exe get "TV5 Monde" "Castes" "S1 E1" fr,es,ar
+```
+
+Pour télécharger toutes les langues disponibles :
+
+```bash
+mono captvty-cli.exe get "TV5 Monde" "Castes" "S1 E1" all
+```
+
+Exemple de fichiers créés :
+
+```text
+castes-les-amours-interdites-S01E01.fr.vtt
+castes-les-amours-interdites-S01E01.es.vtt
+castes-les-amours-interdites-S01E01.ar.vtt
+```
+
+Lors du test avec l'épisode S1 E1 de « Castes, les amours interdites », huit langues étaient disponibles : `ln`, `sw`, `de`, `es`, `ar`, `ro`, `en` et `fr`.
+
+### Codes de langue
+
+| Code | Langue |
+|------|--------|
+| `fr` | français |
+| `en` | anglais |
+| `es` | espagnol |
+| `de` | allemand |
+| `ro` | roumain |
+| `ar` | arabe |
+| `ln` | lingala |
+| `sw` | swahili |
+
+### Commande de diagnostic
+
+Une commande de bas niveau permet également de télécharger directement un sous-titre à partir de l'identifiant TV5MONDE+ :
+
+```bash
+mono captvty-cli.exe tv5subs 107550310_74079A fra sortie.vtt
+```
+
+Cette commande est principalement destinée au diagnostic. L'utilisation normale avec `list`, `info` et `get` ne nécessite pas de connaître les identifiants TV5MONDE+.
+
+### Fonctionnement
+
+Le chemin utilisé est schématiquement :
+
+```text
+catalogue TV5MONDE+
+        |
+        v
+série / épisode
+        |
+        v
+AssetId
+        |
+        v
+RedBee
+        |
+        v
+sous-titres disponibles
+        |
+        v
+fichiers WebVTT
+```
+
+Pour TV5MONDE+, `list`, `info` et `get` utilisent directement le catalogue TV5MONDE+ et RedBee pour ces opérations et ne dépendent pas du provider Captvty.
 
 ## Téléchargement
 

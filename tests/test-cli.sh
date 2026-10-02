@@ -204,7 +204,7 @@ run_t18_network_tests()
     set -e
 
     if [ "$rc" -eq 0 ] &&
-       grep -Fq -- "Le prix du sang" <<<"$output" &&
+       grep -Fq -- "Médecine parallèle" <<<"$output" &&
        grep -Fq -- "512x288" <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
@@ -223,7 +223,7 @@ run_t18_network_tests()
         "$MONO" "$CLI" \
             get T18 \
             "The Closer : L.A. Enquêtes prioritaires" \
-            "Le prix du sang" \
+            "Médecine parallèle" \
             low 2>&1
     )
     rc=$?
@@ -252,7 +252,7 @@ run_t18_network_tests()
         "$MONO" "$CLI" \
             get T18 \
             "The Closer : L.A. Enquêtes prioritaires" \
-            "Le prix du sang" \
+            "Médecine parallèle" \
             low 2>&1
     )
     rc=$?
@@ -325,7 +325,7 @@ run_test \
 run_test \
     "--version" \
     0 \
-    "captvty-cli 2.7.0" \
+    "captvty-cli 2.8.0" \
     --version
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.7.2"
+VERSION="2.8.0"
 
 die()
 {
@@ -64,7 +64,7 @@ CAPTVTY_SHA256=$(sha256sum "$CAPTVTY_DIR/Captvty.exe" | awk '{print $1}')
 if [ "$CAPTVTY_SHA256" != "$CAPTVTY_30126_SHA256" ]; then
     echo
     echo "ERREUR : Captvty.exe ne correspond pas au binaire"
-    echo "         Captvty 3.0.1.26 attendu par Captvty CLI 2.7.2."
+    echo "         Captvty 3.0.1.26 attendu par Captvty CLI 2.8.0."
     echo
     echo "SHA256 attendu : $CAPTVTY_30126_SHA256"
     echo "SHA256 trouvé  : $CAPTVTY_SHA256"
@@ -100,7 +100,7 @@ for f in \
     CefSharp-stub.cs \
     CefSharp-Core-stub.cs \
     CefSharp-WinForms-stub.cs \
-    captvty-cli-v2.7.2.cs \
+    captvty-cli-v2.8.0.cs \
     captvty-tui.py
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
@@ -186,7 +186,7 @@ echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:"$CECIL" \
     -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.7.2.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.8.0.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 
