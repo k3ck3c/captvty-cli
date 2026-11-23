@@ -44,7 +44,7 @@ run_cached_search_without_runtime_test()
 
     cp "$CLI" "$tmp/captvty-cli.exe"
 
-    cat > "$tmp/captvty-cache.json" <<'EOF'
+    cat > "$tmp/captvty-cache-28.json" <<'EOF'
 {
   "version": 2,
   "programs": [
@@ -83,10 +83,11 @@ run_missing_dependency_test()
     tmp=$(mktemp -d)
 
     cp "$CLI" "$tmp/captvty-cli.exe"
-    cp Captvty-cli-engine.exe "$tmp/"
-    cp captvty-provider.exe "$tmp/"
-    touch "$tmp/CefSharp.dll"
-    touch "$tmp/CefSharp.WinForms.dll"
+    touch "$tmp/Captvty-cli-engine-28-progress.exe"
+    touch "$tmp/captvty-provider-28.exe"
+    mkdir -p "$tmp/bin/cefsharp"
+    touch "$tmp/bin/cefsharp/CefSharp.dll"
+    touch "$tmp/bin/cefsharp/CefSharp.WinForms.dll"
 
     set +e
     output=$(
@@ -119,12 +120,13 @@ run_audio_size_test()
     cp "$CLI" "$tmp/captvty-cli.exe"
     cp tests/fake-audio-provider.cs "$tmp/"
 
-    touch "$tmp/Captvty-cli-engine.exe"
-    touch "$tmp/CefSharp.dll"
-    touch "$tmp/CefSharp.Core.dll"
-    touch "$tmp/CefSharp.WinForms.dll"
+    touch "$tmp/Captvty-cli-engine-28-progress.exe"
+    mkdir -p "$tmp/bin/cefsharp"
+    touch "$tmp/bin/cefsharp/CefSharp.dll"
+    touch "$tmp/bin/cefsharp/CefSharp.Core.dll"
+    touch "$tmp/bin/cefsharp/CefSharp.WinForms.dll"
 
-    mcs -out:"$tmp/captvty-provider.exe" "$tmp/fake-audio-provider.cs"
+    mcs -out:"$tmp/captvty-provider-28.exe" "$tmp/fake-audio-provider.cs"
 
     set +e
     output=$(
@@ -155,6 +157,65 @@ run_audio_size_test()
     fi
 }
 
+run_channel_search_tests()
+{
+    local tmp
+    local saved_cli="$CLI"
+
+    tmp=$(mktemp -d)
+
+    cp "$CLI" "$tmp/captvty-cli.exe"
+
+    cat > "$tmp/captvty-cache-28.json" <<'EOF'
+{
+  "version": 2,
+  "programs": [
+    {"channel":"France 2","title":"TEST Série A","subtitle":"Episode 1"},
+    {"channel":"France 2","title":"TEST Série A","subtitle":"Episode 2"},
+    {"channel":"France 2","title":"TEST Série B","subtitle":"Episode 1"},
+    {"channel":"France 3","title":"TEST Série C","subtitle":"Episode 1"}
+  ]
+}
+EOF
+
+    pushd "$tmp" >/dev/null
+    CLI="./captvty-cli.exe"
+
+    run_test \
+        "search cache plusieurs titres même chaîne" \
+        0 \
+        "France 2 - TEST Série B" \
+        search TEST
+
+    run_test \
+        "search cache regroupement des épisodes" \
+        0 \
+        "France 2 (2) - TEST Série A" \
+        search TEST
+
+    run_test \
+        "search --channel France 2" \
+        0 \
+        "France 2 (2) - TEST Série A" \
+        search --channel "France 2" TEST
+
+    run_test \
+        "search --channel insensible à la casse" \
+        0 \
+        "France 2 - TEST Série B" \
+        search --channel "france 2" TEST
+
+    run_test \
+        "search --channel exclut les autres chaînes" \
+        0 \
+        "aucun résultat" \
+        search --channel "France 2" "Série C"
+
+    popd >/dev/null
+    CLI="$saved_cli"
+    rm -rf "$tmp"
+}
+
 run_t18_network_tests()
 {
     echo
@@ -168,7 +229,7 @@ run_t18_network_tests()
 
     if [ "$rc" -eq 0 ] &&
        grep -Fq -- "T18" <<<"$output" &&
-       grep -Fq -- "OK (" <<<"$output"
+       grep -Eq 'T18.*OK \([1-9][0-9]*\)' <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
         PASS=$((PASS + 1))
@@ -177,16 +238,50 @@ run_t18_network_tests()
         printf '      rc=%s\n' "$rc"
         printf '      sortie:\n%s\n' "$output"
         FAIL=$((FAIL + 1))
+        return
     fi
+
+    local cache title subtitle selected
+
+    cache="$(dirname "$CLI")/captvty-cache-28.json"
+
+    if ! selected=$(python3 - "$cache" <<'PYTHON'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    data = json.load(f)
+
+for p in data["programs"]:
+    if (p["channel"] == "T18"
+        and p.get("title", "").strip()
+        and p.get("subtitle", "").strip()):
+        print(p["title"])
+        print(p["subtitle"])
+        break
+else:
+    sys.exit("Aucun épisode T18 disponible")
+PYTHON
+    ); then
+        printf 'FAIL  Sélection dynamique T18\n'
+        FAIL=$((FAIL + 1))
+        return
+    fi
+
+    title=$(sed -n '1p' <<<"$selected")
+    subtitle=$(sed -n '2p' <<<"$selected")
+
+    printf '      Titre      : %s\n' "$title"
+    printf '      Sous-titre : %s\n' "$subtitle"
 
     name="T18 list"
     set +e
-    output=$("$MONO" "$CLI" list T18 "Closer" 2>&1)
+    output=$("$MONO" "$CLI" list T18 "$title" 2>&1)
     rc=$?
     set -e
 
     if [ "$rc" -eq 0 ] &&
-       grep -Fq -- "The Closer" <<<"$output"
+       grep -Fq -- "$subtitle" <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
         PASS=$((PASS + 1))
@@ -199,13 +294,13 @@ run_t18_network_tests()
 
     name="T18 info"
     set +e
-    output=$("$MONO" "$CLI" info T18 "Closer" 2>&1)
+    output=$("$MONO" "$CLI" info T18 "$title - $subtitle" 2>&1)
     rc=$?
     set -e
 
     if [ "$rc" -eq 0 ] &&
-       grep -Fq -- "Médecine parallèle" <<<"$output" &&
-       grep -Fq -- "512x288" <<<"$output"
+       grep -Fq -- "$subtitle" <<<"$output" &&
+       grep -Eq -- '[0-9]+x[0-9]+[[:space:]]+[0-9]+p' <<<"$output"
     then
         printf 'PASS  %s\n' "$name"
         PASS=$((PASS + 1))
@@ -222,8 +317,8 @@ run_t18_network_tests()
         CAPTVTY_TEST_T18_RESOLVE_FAIL=1 \
         "$MONO" "$CLI" \
             get T18 \
-            "The Closer : L.A. Enquêtes prioritaires" \
-            "Médecine parallèle" \
+            "$title" \
+            "$subtitle" \
             low 2>&1
     )
     rc=$?
@@ -251,8 +346,8 @@ run_t18_network_tests()
         CAPTVTY_TEST_T18_FETCH_FAIL=1 \
         "$MONO" "$CLI" \
             get T18 \
-            "The Closer : L.A. Enquêtes prioritaires" \
-            "Médecine parallèle" \
+            "$title" \
+            "$subtitle" \
             low 2>&1
     )
     rc=$?
@@ -296,7 +391,7 @@ run_test \
 run_test \
     "search sans texte" \
     2 \
-    'Usage: mono captvty-cli.exe search [--live] "texte"' \
+    'Usage: mono captvty-cli.exe search [--live] [--channel "chaîne"] "texte"' \
     search
 
 
@@ -325,7 +420,7 @@ run_test \
 run_test \
     "--version" \
     0 \
-    "captvty-cli 2.8.0" \
+    "captvty-cli 2.9.0" \
     --version
 
 
@@ -366,6 +461,27 @@ run_test \
     2 \
     "Commande inconnue: turlututu" \
     --timeout 60 turlututu
+
+run_test \
+    "search --channel sans valeur" \
+    2 \
+    "ERREUR: --channel attend un nom de chaîne" \
+    search --channel
+
+run_test \
+    "search --channel suivi d'une option" \
+    2 \
+    "ERREUR: --channel attend un nom de chaîne" \
+    search --channel --live TEST
+
+run_test \
+    "search --channel sans texte" \
+    2 \
+    "Usage:" \
+    search --channel "France 2"
+
+run_channel_search_tests
+
 
 run_missing_dependency_test
 run_cached_search_without_runtime_test

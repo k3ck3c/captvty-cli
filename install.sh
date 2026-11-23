@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.8.0"
+VERSION="2.9.0"
 
 die()
 {
@@ -20,7 +20,7 @@ fi
 if [ "$#" -eq 1 ]; then
     CAPTVTY_DIR="$1"
 else
-    printf "Répertoire de l'installation originale de Captvty 3.0.1.26 : "
+    printf "Répertoire de l'installation originale de Captvty 3.0.1.28 : "
     read -r CAPTVTY_DIR
 fi
 
@@ -59,27 +59,28 @@ check_command()
 }
 check_command sha256sum
 check_file "Captvty.exe"
-CAPTVTY_30126_SHA256="6e81ed15167d36c5c3b64b5587f310612e2a2890cbfc33b8c982bc0fa2ca282f"
+CAPTVTY_30128_SHA256="13e04a10367e2e7c7492104a81d110470d8def2cd965037d69d2d5d634f756a7"
 CAPTVTY_SHA256=$(sha256sum "$CAPTVTY_DIR/Captvty.exe" | awk '{print $1}')
-if [ "$CAPTVTY_SHA256" != "$CAPTVTY_30126_SHA256" ]; then
+if [ "$CAPTVTY_SHA256" != "$CAPTVTY_30128_SHA256" ]; then
     echo
     echo "ERREUR : Captvty.exe ne correspond pas au binaire"
-    echo "         Captvty 3.0.1.26 attendu par Captvty CLI 2.8.0."
+    echo "         Captvty 3.0.1.28 attendu par Captvty CLI 2.9.0."
     echo
-    echo "SHA256 attendu : $CAPTVTY_30126_SHA256"
+    echo "SHA256 attendu : $CAPTVTY_30128_SHA256"
     echo "SHA256 trouvé  : $CAPTVTY_SHA256"
     echo
-    echo "Captvty 3.0.1.27 n'est pas actuellement compatible."
-    echo "Utilisez une installation originale de Captvty 3.0.1.26."
+    echo "Utilisez une installation originale de Captvty 3.0.1.28."
     exit 1
 fi
-echo "  OK  Captvty 3.0.1.26 vérifié (SHA256)"
+echo "  OK  Captvty 3.0.1.28 vérifié (SHA256)"
 check_file "Captvty.exe.config"
 check_dir  "bin"
 check_command mono
 check_command mcs
 check_command python3
 check_command curl
+check_command ffmpeg
+check_command ffprobe
 CECIL=$(find /usr/lib/mono/gac/Mono.Cecil \
     -name Mono.Cecil.dll 2>/dev/null |
     sort -V |
@@ -92,15 +93,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo
 echo "Vérification des sources Captvty CLI..."
 for f in \
-    patch-mono-compat.cs \
-    patch-captvty-cli.cs \
-    patch-bfmtv-hashset.cs \
-    patch-m6.cs \
-    captvty-provider.cs \
-    CefSharp-stub.cs \
-    CefSharp-Core-stub.cs \
-    CefSharp-WinForms-stub.cs \
-    captvty-cli-v2.8.0.cs \
+    patch-dpi-28.cs \
+    patch-28-progress.cs \
+    captvty-provider-28.cs \
+    captvty-cli-v2.9.0.cs \
     captvty-tui.py
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
@@ -116,77 +112,42 @@ printf "  Répertoire temporaire : %s\n" "$BUILD_DIR"
 echo
 echo "Compilation des outils de patch..."
 
-mcs -r:"$CECIL" -r:System.Windows.Forms -r:System.Drawing \
-    -out:"$BUILD_DIR/patch-mono-compat.exe" \
-    "$SCRIPT_DIR/patch-mono-compat.cs"
-
-mcs -r:"$CECIL" \
-    -out:"$BUILD_DIR/patch-captvty-cli.exe" \
-    "$SCRIPT_DIR/patch-captvty-cli.cs"
-
-mcs -r:"$CECIL" \
-    -out:"$BUILD_DIR/patch-bfmtv-hashset.exe" \
-    "$SCRIPT_DIR/patch-bfmtv-hashset.cs"
-
-mcs -r:"$CECIL" \
-    -out:"$BUILD_DIR/patch-m6.exe" \
-    "$SCRIPT_DIR/patch-m6.cs"
+for patch in patch-dpi-28 patch-28-progress
+do
+    mcs -r:"$CECIL" \
+        -out:"$BUILD_DIR/$patch.exe" \
+        "$SCRIPT_DIR/$patch.cs"
+done
 
 echo "  OK  outils de patch compilés"
 
 echo
 echo "Construction du moteur Captvty CLI..."
 
-mono "$BUILD_DIR/patch-mono-compat.exe" \
+mono "$BUILD_DIR/patch-dpi-28.exe" \
     "$CAPTVTY_DIR/Captvty.exe" \
-    "$BUILD_DIR/Captvty-mono-clean.exe"
+    "$BUILD_DIR/Captvty-cli-engine-28.exe"
 
-mono "$BUILD_DIR/patch-captvty-cli.exe" \
-    "$BUILD_DIR/Captvty-mono-clean.exe" \
-    "$BUILD_DIR/Captvty-cli-engine-unpatched.exe"
-
-mono "$BUILD_DIR/patch-bfmtv-hashset.exe" \
-    "$BUILD_DIR/Captvty-cli-engine-unpatched.exe" \
-    "$BUILD_DIR/Captvty-cli-engine.exe"
-
-mono "$BUILD_DIR/patch-m6.exe" \
-    "$BUILD_DIR/Captvty-cli-engine.exe" \
-    "$BUILD_DIR/Captvty-cli-engine-m6.exe"
+mono "$BUILD_DIR/patch-28-progress.exe" \
+    "$BUILD_DIR/Captvty-cli-engine-28.exe" \
+    "$BUILD_DIR/Captvty-cli-engine-28-progress.exe"
 
 echo "  OK  moteur Captvty CLI construit"
 
 echo
 echo "Compilation du provider..."
-mcs -r:System.Web.Extensions \
-    -out:"$BUILD_DIR/captvty-provider.exe" \
-    "$SCRIPT_DIR/captvty-provider.cs"
+
+mcs -r:System.Core -r:System.Web.Extensions \
+    -out:"$BUILD_DIR/captvty-provider-28.exe" \
+    "$SCRIPT_DIR/captvty-provider-28.cs"
+
 echo "  OK  provider compilé"
 
 echo
-echo "Compilation des shims CefSharp..."
-mcs -target:library \
-    -out:"$BUILD_DIR/CefSharp.dll" \
-    "$SCRIPT_DIR/CefSharp-stub.cs"
-
-mcs -target:library \
-    -out:"$BUILD_DIR/CefSharp.Core.dll" \
-    -r:"$BUILD_DIR/CefSharp.dll" \
-    -r:System.Net.Http.dll \
-    "$SCRIPT_DIR/CefSharp-Core-stub.cs"
-
-mcs -target:library \
-    -out:"$BUILD_DIR/CefSharp.WinForms.dll" \
-    -r:"$BUILD_DIR/CefSharp.dll" \
-    -r:"$BUILD_DIR/CefSharp.Core.dll" \
-    "$SCRIPT_DIR/CefSharp-WinForms-stub.cs"
-echo "  OK  shims CefSharp compilés"
-
-echo
 echo "Compilation de Captvty CLI $VERSION..."
-mcs -r:"$CECIL" \
-    -r:System.Web.Extensions \
+mcs -r:System.Core -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.8.0.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.9.0.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 
@@ -202,13 +163,9 @@ echo
 echo "Installation dans $CAPTVTY_DIR..."
 
 INSTALL_FILES=(
-    Captvty-cli-engine.exe
-    Captvty-cli-engine-m6.exe
-    captvty-provider.exe
+    Captvty-cli-engine-28-progress.exe
+    captvty-provider-28.exe
     captvty-cli.exe
-    CefSharp.dll
-    CefSharp.Core.dll
-    CefSharp.WinForms.dll
 )
 
 BACKUP_DIR="$CAPTVTY_DIR/captvty-cli-backup-$(date +%Y%m%d-%H%M%S)"
@@ -277,8 +234,8 @@ if ! python3 -m venv "$YTDLP_DEST"; then
 fi
 
 if ! "$YTDLP_DEST/bin/pip" install \
-    'yt-dlp==2026.07.04' \
-    'curl_cffi==0.15.0'; then
+    'yt-dlp==2026.10.26' \
+    'curl_cffi==0.17.0'; then
     restore_ytdlp
     die "installation de yt-dlp/curl_cffi impossible"
 fi
@@ -288,7 +245,7 @@ YTDLP_VERSION="$("$YTDLP_DEST/bin/yt-dlp" --version)" || {
     die "impossible d'exécuter yt-dlp"
 }
 
-if [ "$YTDLP_VERSION" != "2026.07.04" ]; then
+if [ "$YTDLP_VERSION" != "2026.10.26" ]; then
     restore_ytdlp
     die "version yt-dlp inattendue : $YTDLP_VERSION"
 fi
@@ -299,7 +256,7 @@ CURL_CFFI_VERSION="$("$YTDLP_DEST/bin/python3" -c \
     die "impossible de charger curl_cffi"
 }
 
-if [ "$CURL_CFFI_VERSION" != "0.15.0" ]; then
+if [ "$CURL_CFFI_VERSION" != "0.17.0" ]; then
     restore_ytdlp
     die "version curl_cffi inattendue : $CURL_CFFI_VERSION"
 fi

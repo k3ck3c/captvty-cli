@@ -11,7 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 
 
-CACHE = Path("captvty-cache.json")
+CACHE = Path("captvty-cache-28.json")
 
 
 def load_cache():
@@ -24,16 +24,27 @@ def load_cache():
         channel = p.get("channel", "")
         title = p.get("title", "")
         subtitle = p.get("subtitle", "")
+        episode_id = p.get("episode_id") or ""
+        match = re.match(r"S(\d+)E(\d+)\b", episode_id, re.IGNORECASE)
+        episode = match.group(0).upper() if match else ""
+        season_num = int(match.group(1)) if match else 0
+        episode_num = int(match.group(2)) if match else 0
 
         if channel and title:
             by_channel[channel].append({
                 "title": title,
                 "subtitle": subtitle,
+                "episode": episode,
+                "season_num": season_num,
+                "episode_num": episode_num,
             })
 
     for programs in by_channel.values():
         programs.sort(key=lambda x: (
             x["title"].casefold(),
+            not bool(x["episode"]),
+            x["season_num"],
+            x["episode_num"],
             x["subtitle"].casefold()
         ))
 
@@ -95,6 +106,7 @@ def search_programs(by_channel, query):
             haystack = normalize_search(
                 channel + " " +
                 p["title"] + " " +
+                p["episode"] + " " +
                 p["subtitle"]
             )
 
@@ -507,6 +519,9 @@ def main(stdscr):
 
             text = p["title"]
 
+            if p["episode"]:
+                text = p["episode"] + "  " + text
+
             if p["subtitle"]:
                 text += " — " + p["subtitle"]
 
@@ -659,6 +674,7 @@ def main(stdscr):
                     f"Chaîne : {channel}",
                     "",
                     f"Titre : {p['title']}",
+                    f"Épisode : {p['episode'] or '-'}",
                     f"Sous-titre : {p['subtitle'] or '-'}",
                 ])
 

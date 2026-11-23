@@ -6,3 +6,13 @@ bin/
 Vidéos/
 
 captvty-cache.json
+
+# Cache Captvty CLI 2.9.0
+captvty-cache-28.json
+captvty-cache-28.json.tmp
+captvty-cache-28.json.bak
+
+# Environnement Python local
+.ytdlp-venv/
+__pycache__/
+*.pyc
