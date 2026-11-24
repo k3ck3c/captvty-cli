@@ -97,7 +97,10 @@ for f in \
     patch-28-progress.cs \
     captvty-provider-28.cs \
     captvty-cli-v2.9.0.cs \
-    captvty-tui.py
+    captvty-tui.py \
+    install-media-tools.sh \
+    tools/build-mp4box.sh \
+    tools/mkvmerge-wrapper.sh
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
     printf "  OK  %s\n" "$f"
@@ -160,12 +163,20 @@ BUILT_VERSION="$(mono "$BUILD_DIR/captvty-cli.exe" --version | sed 's/^\xEF\xBB\
 printf "  OK  %s\n" "$BUILT_VERSION"
 
 echo
+echo "Preparation des outils multimedia..."
+
+bash "$SCRIPT_DIR/install-media-tools.sh" \
+    "$CAPTVTY_DIR" "$BUILD_DIR"
+
+echo
 echo "Installation dans $CAPTVTY_DIR..."
 
 INSTALL_FILES=(
     Captvty-cli-engine-28-progress.exe
     captvty-provider-28.exe
     captvty-cli.exe
+    bin/mp4box/mp4box
+    bin/mkvtoolnix/mkvmerge
 )
 
 BACKUP_DIR="$CAPTVTY_DIR/captvty-cli-backup-$(date +%Y%m%d-%H%M%S)"
@@ -180,12 +191,13 @@ fi
 
 for f in "${BACKUP_FILES[@]}"
 do
-    if [ -e "$CAPTVTY_DIR/$f" ]; then
+    if [ -e "$CAPTVTY_DIR/$f" ] || [ -L "$CAPTVTY_DIR/$f" ]; then
         if [ "$BACKUP_CREATED" -eq 0 ]; then
             mkdir "$BACKUP_DIR"
             BACKUP_CREATED=1
         fi
-        cp -a "$CAPTVTY_DIR/$f" "$BACKUP_DIR/"
+        mkdir -p "$BACKUP_DIR/$(dirname "$f")"
+        cp -a "$CAPTVTY_DIR/$f" "$BACKUP_DIR/$f"
     fi
 done
 
@@ -196,7 +208,19 @@ fi
 # Installation des fichiers construits.
 for f in "${INSTALL_FILES[@]}"
 do
-    cp "$BUILD_DIR/$f" "$CAPTVTY_DIR/$f"
+    DEST="$CAPTVTY_DIR/$f"
+    mkdir -p "$(dirname "$DEST")"
+    TEMP_DEST="$(mktemp "$(dirname "$DEST")/.captvty-install.XXXXXX")"
+
+    if ! cp -p "$BUILD_DIR/$f" "$TEMP_DEST"; then
+        rm -f "$TEMP_DEST"
+        die "copie impossible : $f"
+    fi
+
+    if ! mv -fT "$TEMP_DEST" "$DEST"; then
+        rm -f "$TEMP_DEST"
+        die "installation impossible : $f"
+    fi
     printf "  OK  %s\n" "$f"
 done
 
