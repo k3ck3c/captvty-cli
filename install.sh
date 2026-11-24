@@ -95,6 +95,7 @@ echo "Vérification des sources Captvty CLI..."
 for f in \
     patch-dpi-28.cs \
     patch-28-progress.cs \
+    patch-arte-hashset-28.cs \
     captvty-provider-28.cs \
     captvty-cli-v2.9.0.cs \
     captvty-tui.py \
@@ -115,7 +116,7 @@ printf "  Répertoire temporaire : %s\n" "$BUILD_DIR"
 echo
 echo "Compilation des outils de patch..."
 
-for patch in patch-dpi-28 patch-28-progress
+for patch in patch-dpi-28 patch-28-progress patch-arte-hashset-28
 do
     mcs -r:"$CECIL" \
         -out:"$BUILD_DIR/$patch.exe" \
@@ -133,6 +134,10 @@ mono "$BUILD_DIR/patch-dpi-28.exe" \
 
 mono "$BUILD_DIR/patch-28-progress.exe" \
     "$BUILD_DIR/Captvty-cli-engine-28.exe" \
+    "$BUILD_DIR/Captvty-cli-engine-28-progress-tmp.exe"
+
+mono "$BUILD_DIR/patch-arte-hashset-28.exe" \
+    "$BUILD_DIR/Captvty-cli-engine-28-progress-tmp.exe" \
     "$BUILD_DIR/Captvty-cli-engine-28-progress.exe"
 
 echo "  OK  moteur Captvty CLI construit"
