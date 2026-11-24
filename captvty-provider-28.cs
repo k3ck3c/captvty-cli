@@ -209,6 +209,88 @@ class CaptvtyProvider
         catch { return ""; }
     }
 
+
+    static bool IsFinalMediaFile(string path)
+    {
+        if (String.IsNullOrEmpty(path) || !File.Exists(path))
+            return false;
+
+        string name = Path.GetFileName(path).ToLowerInvariant();
+
+        if (name.Contains(".tmp.") ||
+            name.Contains(".part."))
+            return false;
+
+        switch (Path.GetExtension(name))
+        {
+            case ".mp4":
+            case ".mkv":
+            case ".ts":
+            case ".m2ts":
+            case ".avi":
+            case ".wmv":
+            case ".flv":
+            case ".webm":
+            case ".mov":
+            case ".mpg":
+            case ".mpeg":
+            case ".mp3":
+            case ".m4a":
+            case ".aac":
+            case ".wav":
+            case ".flac":
+            case ".ogg":
+            case ".wma":
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    static string ResolveFinalDownloadPath(object item)
+    {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+
+        do
+        {
+            string primary = DownloadPath(item);
+
+            if (IsFinalMediaFile(primary))
+                return primary;
+
+            try
+            {
+                List<object> paths = ToList(Call(item, "_OEA"));
+                List<string> candidates = new List<string>();
+
+                foreach (object entry in paths)
+                {
+                    string path = Convert.ToString(entry);
+
+                    if (IsFinalMediaFile(path) &&
+                        !candidates.Contains(path))
+                        candidates.Add(path);
+                }
+
+                if (candidates.Count == 1)
+                    return candidates[0];
+            }
+            catch (Exception)
+            {
+                // La liste peut etre en cours de modification.
+            }
+
+            if (timer.ElapsedMilliseconds >= 5000)
+                break;
+
+            Thread.Sleep(250);
+        }
+        while (true);
+
+        return "";
+    }
+
     static string SanitizeDownloadedFile(string path)
     {
         if (String.IsNullOrEmpty(path) || !File.Exists(path))
@@ -390,7 +472,15 @@ class CaptvtyProvider
 
             if (state == 7)
             {
-                string finalPath = DownloadPath(item);
+                string finalPath = ResolveFinalDownloadPath(item);
+
+                if (String.IsNullOrEmpty(finalPath))
+                {
+                    Console.Error.WriteLine(
+                        "Etat Complete mais fichier final introuvable ou ambigu");
+                    return 10;
+                }
+
                 try
                 {
                     finalPath = SanitizeDownloadedFile(finalPath);
@@ -399,6 +489,14 @@ class CaptvtyProvider
                 {
                     Console.Error.WriteLine(
                         "Renommage impossible: " + ex.Message);
+                }
+
+                if (!File.Exists(finalPath))
+                {
+                    Console.Error.WriteLine(
+                        "Fichier final introuvable apres renommage: " +
+                        finalPath);
+                    return 10;
                 }
 
                 Console.WriteLine(
