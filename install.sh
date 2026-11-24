@@ -64,7 +64,7 @@ CAPTVTY_SHA256=$(sha256sum "$CAPTVTY_DIR/Captvty.exe" | awk '{print $1}')
 if [ "$CAPTVTY_SHA256" != "$CAPTVTY_30128_SHA256" ]; then
     echo
     echo "ERREUR : Captvty.exe ne correspond pas au binaire"
-    echo "         Captvty 3.0.1.28 attendu par Captvty CLI 2.9.0."
+    echo "         Captvty 3.0.1.28 attendu par Captvty CLI $VERSION."
     echo
     echo "SHA256 attendu : $CAPTVTY_30128_SHA256"
     echo "SHA256 trouvé  : $CAPTVTY_SHA256"
