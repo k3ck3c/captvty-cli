@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.9.0"
+VERSION="2.9.1"
 
 die()
 {
@@ -97,7 +97,7 @@ for f in \
     patch-28-progress.cs \
     patch-arte-hashset-28.cs \
     captvty-provider-28.cs \
-    captvty-cli-v2.9.0.cs \
+    captvty-cli-v2.9.1.cs \
     stdout-pipe.cs \
     captvty-tui.py \
     install-media-tools.sh \
@@ -156,7 +156,7 @@ echo
 echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.9.0.cs" \
+    "$SCRIPT_DIR/captvty-cli-v2.9.1.cs" \
     "$SCRIPT_DIR/stdout-pipe.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 

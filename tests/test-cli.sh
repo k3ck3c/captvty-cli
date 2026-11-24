@@ -559,7 +559,7 @@ run_test \
 run_test \
     "--version" \
     0 \
-    "captvty-cli 2.9.0" \
+    "captvty-cli 2.9.1" \
     --version
 
 

@@ -3603,7 +3603,7 @@ class CaptvtyCli
         if (args.Length == 1 &&
             String.Equals(args[0], "--version", StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine("captvty-cli 2.9.0");
+            Console.WriteLine("captvty-cli 2.9.1");
             return 0;
         }
 
