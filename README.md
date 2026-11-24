@@ -2,6 +2,90 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.9.1
+
+Version du 24 novembre 2026.
+
+Cette version utilise toujours le moteur original de
+Captvty 3.0.1.28, adapté à Mono sous Debian 13.
+
+### Principales améliorations
+
+- Installation automatique de MP4Box natif sous Linux.
+- Compilation de GPAC 26.07 si aucun MP4Box compatible
+  n'est disponible.
+- Intégration de mkvmerge pour le multiplexage Matroska.
+- Prise en charge des vidéos Arte comportant plusieurs
+  pistes audio et plusieurs pistes de sous-titres.
+- Correction de la résolution du chemin final après
+  multiplexage MP4 ou MKV.
+- Protection des accès concurrents au HashSet utilisé
+  par le fournisseur Arte.
+- Gestion des tubes Unix fermés prématurément
+  (broken pipe), notamment lors de l'utilisation de head.
+- Conservation des téléchargements natifs déjà lancés
+  lorsque le lecteur de la sortie standard ferme son tube.
+- Nouveaux tests automatisés de non-régression.
+
+### Validation sous Debian 13
+
+| Ensemble de tests | Résultat |
+|---|---:|
+| CLI hors réseau | 29/29 |
+| Tests réseau T18 | 5/5 |
+| Tests du HashSet concurrent | 5/5 |
+| Résolution du chemin final | 10/10 |
+| Interface TUI | 8/8 |
+| **Total** | **57/57** |
+
+Des téléchargements réels ont également été réalisés :
+
+- Arte : Jossi, avec multiplexage MKV, cinq pistes
+  audio et quatre pistes de sous-titres.
+- T18 : Face à face, Risque imminent, en 1080p.
+- Arte : documentaire Wolf Biermann, avec la version
+  définitive 2.9.1, en MP4 HEVC 1080p.
+
+Les téléchargements Jossi et T18 ont été validés
+pendant le développement de cette version.
+
+Le dernier téléchargement Wolf Biermann a produit
+un fichier de 48 550 985 octets, d'une durée de
+129,88 secondes, en 18,069 secondes, avec un code
+retour égal à zéro.
+
+### Modifications du moteur Captvty
+
+La comparaison IL avec le moteur original donne :
+
+- 8 440 méthodes inchangées selon le comparateur IL ;
+- 5 méthodes modifiées ;
+- 1 méthode ajoutée ;
+- aucune méthode supprimée.
+
+Soit 99,94 % des méthodes originales inchangées
+selon ce comparateur.
+
+Le moteur conserve son nom :
+
+`Captvty-cli-engine-28-progress.exe`
+
+### Documentation technique
+
+- [Protection du HashSet Arte](docs/ARTE-HASHSET-3.0.1.28.md)
+- [MP4Box et mkvmerge sous Linux](docs/MEDIA-TOOLS.md)
+- [Résolution du chemin final](docs/FINAL-DOWNLOAD-PATH.md)
+- [Gestion du broken pipe](docs/BROKEN-PIPE.md)
+
+### Limites de la validation
+
+Toutes les chaînes n'ont pas été testées exhaustivement.
+Les contrôles ffprobe valident les caractéristiques
+et la structure des fichiers obtenus, mais ne constituent
+pas un décodage intégral de leur contenu.
+
+---
+
 ## Version 2.9.0
 
 La version **2.9.0** adapte Captvty CLI à **Captvty 3.0.1.28**
@@ -100,6 +184,7 @@ Le projet fournit notamment :
 - Python 3 et son module venv ;
 - curl ;
 - ffmpeg et ffprobe ;
+- mkvtoolnix pour le multiplexage Matroska ;
 - git pour récupérer les sources ;
 - jq (optionnel, pour interroger le cache JSON) ;
 - une installation originale de **Captvty 3.0.1.28**.
@@ -108,7 +193,17 @@ Sous Debian :
 
 ~~~bash
 sudo apt install git mono-devel libmono-cecil-private-cil \
-    python3 python3-venv curl ffmpeg
+    python3 python3-venv curl ffmpeg mkvtoolnix
+~~~
+
+Si aucun MP4Box compatible n'est disponible,
+l'installateur compile GPAC 26.07.
+
+Dépendances nécessaires à cette compilation :
+
+~~~bash
+sudo apt install build-essential pkg-config \
+    zlib1g-dev libfreetype-dev libpng-dev
 ~~~
 
 Pour installer également jq :
@@ -151,12 +246,14 @@ Le script :
 
 - vérifie les dépendances ;
 - vérifie le SHA-256 du Captvty.exe original ;
-- compile les deux outils de patch ;
+- compile les trois outils de patch ;
 - construit le moteur compatible Mono ;
 - compile le provider et la CLI ;
 - vérifie la version du binaire obtenu ;
-- sauvegarde les éventuels fichiers CLI précédents ;
-- installe la CLI et le TUI ;
+- prépare et vérifie MP4Box et mkvmerge ;
+- sauvegarde les éventuels fichiers CLI et outils
+  multimédias précédents ;
+- installe la CLI, le TUI et les outils multimédias ;
 - crée un environnement Python dédié aux replays T18.
 
 L'environnement `.ytdlp-venv` contient notamment :
@@ -180,7 +277,7 @@ ou des moteurs modifiés n'a pas été validée.
 L'utilisation de `install.sh` est recommandée.
 
 La procédure manuelle ci-dessous décrit la construction
-des composants C# de Captvty CLI 2.9.0.
+des composants C# de Captvty CLI 2.9.1.
 
 Le dépôt ne fournit pas Captvty.exe.
 
@@ -222,7 +319,7 @@ echo "$CECIL"
 ### 3. Compiler les outils de patch
 
 ~~~bash
-for patch in patch-dpi-28 patch-28-progress
+for patch in patch-dpi-28 patch-28-progress patch-arte-hashset-28
 do
     mcs -r:"$CECIL" \
         -out:"$patch.exe" \
@@ -241,6 +338,10 @@ Captvty-cli-engine-28.exe
     |
     | patch-28-progress
     v
+Captvty-cli-engine-28-progress-tmp.exe
+    |
+    | patch-arte-hashset-28
+    v
 Captvty-cli-engine-28-progress.exe
 ~~~
 
@@ -251,6 +352,10 @@ mono patch-dpi-28.exe \
 
 mono patch-28-progress.exe \
     Captvty-cli-engine-28.exe \
+    Captvty-cli-engine-28-progress-tmp.exe
+
+mono patch-arte-hashset-28.exe \
+    Captvty-cli-engine-28-progress-tmp.exe \
     Captvty-cli-engine-28-progress.exe
 ~~~
 
@@ -262,14 +367,45 @@ Le second protège les deux méthodes de progression :
 - `_qh/_X4B::_qJB(System.Double)` ;
 - `_qh/_X4B::_a0()`.
 
-La comparaison IL entre le binaire original et le moteur final
-a donné :
+Le troisième patch protège les accès concurrents
+au HashSet du fournisseur Arte.
+
+Deux instructions sont modifiées :
+
+- `_Xfb::_0gB`, IL_00F7 ;
+- `_Xfb/_oob::MoveNext`, IL_00E1.
+
+Une méthode `_Xfb::_LockedAdd` est ajoutée.
+Elle utilise Monitor.Enter et Monitor.Exit,
+avec libération du verrou dans un bloc finally.
+
+Comparaison IL avec Captvty CLI 2.9.1 :
+
+~~~text
+SUMMARY different=6 same=8440 onlyA=0 onlyB=1
+~~~
+
+Le compteur different inclut les méthodes ajoutées
+et supprimées.
+
+| Caractéristique | Nombre |
+|---|---:|
+| Méthodes originales | 8445 |
+| Méthodes inchangées selon le comparateur | 8440 |
+| Méthodes modifiées | 5 |
+| Méthodes ajoutées | 1 |
+| Méthodes supprimées | 0 |
+| Méthodes du moteur final | 8446 |
+
+Pour mémoire, la version 2.9.0, avant l'ajout
+du patch HashSet, donnait :
 
 ~~~text
 SUMMARY different=3 same=8442 onlyA=0 onlyB=0
 ~~~
 
-Seulement trois méthodes sur 8445 sont modifiées.
+Voir [Protection du HashSet Arte](docs/ARTE-HASHSET-3.0.1.28.md)
+pour l'analyse détaillée.
 
 Le moteur utilisé par défaut est
 `Captvty-cli-engine-28-progress.exe`.
@@ -287,7 +423,8 @@ mcs -r:System.Core -r:System.Web.Extensions \
 ~~~bash
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:captvty-cli.exe \
-    captvty-cli-v2.9.0.cs
+    captvty-cli-v2.9.1.cs \
+    stdout-pipe.cs
 ~~~
 
 Quatre avertissements CS0649 concernant les classes utilisées
@@ -303,6 +440,9 @@ captvty-provider-28.exe
 captvty-cli.exe
 captvty-tui.py
 bin/
+    cefsharp/
+    mp4box/mp4box
+    mkvtoolnix/mkvmerge
 .ytdlp-venv/
 ~~~
 
@@ -312,10 +452,13 @@ Les DLL CefSharp originales présentes dans `bin/cefsharp/`
 ont suffi pour les opérations validées avec Captvty 3.0.1.28.
 
 La compilation des anciens shims CefSharp n'est donc plus
-effectuée par l'installateur 2.9.0.
+effectuée par l'installateur depuis la version 2.9.0.
 
-Pour préparer également l'environnement Python dédié à T18,
+Pour préparer également l'environnement Python dédié à T18
+et installer les outils multimédias natifs,
 utiliser `install.sh`.
+
+Voir [MP4Box et mkvmerge sous Linux](docs/MEDIA-TOOLS.md).
 
 ### Validation de la construction
 
@@ -329,7 +472,7 @@ mono captvty-cli.exe --version
 Résultat attendu :
 
 ~~~text
-captvty-cli 2.9.0
+captvty-cli 2.9.1
 ~~~
 
 Exemple :
@@ -1042,6 +1185,29 @@ Une marge de 4 % est ensuite appliquée.
 Les tailles affichées sont indicatives et peuvent différer
 de la taille réelle du fichier téléchargé.
 
+#### Précision des estimations
+
+La taille affichée par la commande `info` est une
+estimation et ne garantit pas la taille finale.
+
+Le débit moyen réel peut être sensiblement différent
+du débit annoncé.
+
+Exemple mesuré avec Captvty CLI 2.9.1 :
+
+| Caractéristique | Wolf Biermann |
+|---|---:|
+| Durée annoncée | 2 min 10 s |
+| Durée mesurée | 129,88 s |
+| Débit annoncé | 4 358 kb/s |
+| Débit moyen mesuré | 2 990 kb/s |
+| Taille estimée | 74 Mo |
+| Taille réelle | 48 550 985 octets |
+| Écart approximatif | -34 % |
+
+Le fichier final est un MP4 contenant une piste
+vidéo HEVC 1920x1080 et une piste audio AAC.
+
 ### Exemple validé avec France 3
 
 Emission : Saint-Pierre - Le miel et les affaires.
@@ -1342,6 +1508,64 @@ de sélection de la qualité sont disponibles :
 Il est conseillé d'utiliser préalablement la commande info
 pour connaître les médias disponibles.
 
+#### Paramètre sous-titre obligatoire
+
+La commande `get` attend quatre arguments :
+
+- le nom de la chaîne ;
+- le titre de l'émission ;
+- le sous-titre ou le nom de l'épisode ;
+- la qualité souhaitée.
+
+Même lorsque l'émission ne possède pas de sous-titre,
+le troisième argument doit être fourni sous la forme
+d'une chaîne vide `""`.
+
+Exemple incorrect :
+
+~~~bash
+time mono captvty-cli.exe get \
+    "Arte" \
+    "Documentaire : Wolf Biermann, un chansonnier au destin hors pair" \
+    high
+~~~
+
+Résultat :
+
+~~~text
+Usage: mono captvty-cli.exe get "chaîne" "titre" "sous-titre" high|low|N
+~~~
+
+Code retour : 2. Aucun téléchargement n'est lancé.
+
+Exemple correct :
+
+~~~bash
+mono captvty-cli.exe get "Arte" "Titre" "" high
+~~~
+
+Le terme sous-titre désigne ici le sous-titre éditorial
+ou le nom de l'épisode, et non les pistes de sous-titres
+associées à la vidéo.
+
+Exemple réel validé avec Captvty CLI 2.9.1 :
+
+~~~bash
+time mono captvty-cli.exe get \
+    "Arte" \
+    "Documentaire : Wolf Biermann, un chansonnier au destin hors pair" \
+    "" \
+    high
+~~~
+
+Résultat :
+
+- téléchargement réussi ;
+- temps réel : 18,069 secondes ;
+- taille : 48 550 985 octets ;
+- vidéo HEVC 1920x1080, audio AAC ;
+- code retour : 0.
+
 ### Exemple de téléchargement
 
 ~~~bash
@@ -1491,7 +1715,7 @@ Voir la section TV5MONDE+.
 
 ## Installation et fichiers utilisés
 
-L'installation de Captvty CLI 2.9.0 repose sur une
+L'installation de Captvty CLI 2.9.1 repose sur une
 distribution originale de Captvty 3.0.1.28.
 
 Le script install.sh compile et installe les composants
@@ -1510,6 +1734,8 @@ captvty-cache-28.json
 .ytdlp-venv/
 bin/
     cefsharp/
+    mp4box/mp4box
+    mkvtoolnix/mkvmerge
 ~~~
 
 ### Rôle des fichiers
@@ -1524,8 +1750,10 @@ bin/
 | captvty-tui.py | Interface interactive en mode texte |
 | captvty-cache-28.json | Catalogue local et état des campagnes |
 | .ytdlp-venv/ | Environnement Python utilisé pour T18 |
-| bin/ | Dépendances originales de Captvty |
+| bin/ | Dépendances originales et outils multimédias natifs |
 | bin/cefsharp/ | Bibliothèques CefSharp originales |
+| bin/mp4box/mp4box | MP4Box natif sous Linux |
+| bin/mkvtoolnix/mkvmerge | Wrapper Linux vers /usr/bin/mkvmerge |
 
 Le fichier captvty-cache-28.json est créé automatiquement
 lors d'une mise à jour du catalogue.
@@ -1540,7 +1768,7 @@ Les adaptations nécessaires à Mono sont appliquées
 Les bibliothèques originales de Captvty doivent rester
 présentes dans le répertoire d'installation.
 
-La version 2.9.0 utilise les bibliothèques CefSharp
+Depuis la version 2.9.0, la CLI utilise les bibliothèques CefSharp
 originales fournies avec Captvty 3.0.1.28.
 
 ### Environnement Mono
@@ -1559,8 +1787,12 @@ a été validée sous Debian 13.
 La migration directe d'une installation antérieure
 n'a pas été testée.
 
-Le nouveau cache porte un nom distinct de celui utilisé
-par les anciennes versions.
+Le cache `captvty-cache-28.json` conserve le même nom
+entre les versions 2.9.0 et 2.9.1.
+
+Une réinstallation sur une installation 2.9.1 a également
+été validée, avec sauvegarde des composants précédents
+et réutilisation du MP4Box natif existant.
 
 ## Interroger le cache avec jq
 
@@ -2120,6 +2352,10 @@ de Captvty CLI et de son interface TUI.
 | tests/test-cli.sh | Tests automatisés de la CLI |
 | tests/test-tui.py | Tests unitaires de la TUI |
 | tests/fake-audio-provider.cs | Provider simulé pour les tests audio |
+| tests/fake-get-provider.cs | Provider simulé pour les tests de téléchargement |
+| tests/test-final-path.cs | Tests de résolution du chemin final |
+| tests/test-hashset-28.cs | Tests des accès concurrents au HashSet |
+| tests/test-stdout-pipe.cs | Tests indépendants de la sortie standard |
 
 ### Tests CLI hors réseau
 
@@ -2155,7 +2391,10 @@ Les tests hors réseau couvrent notamment :
 - le regroupement des résultats de recherche ;
 - la recherche dans un cache sans moteur Captvty ;
 - la détection des dépendances CefSharp manquantes ;
-- le calcul de la taille estimée avec les pistes audio.
+- le calcul de la taille estimée avec les pistes audio ;
+- la fermeture prématurée de la sortie standard ;
+- la poursuite d'un téléchargement déjà lancé ;
+- la gestion des erreurs d'écriture et des timeouts.
 
 Les tests utilisant des catalogues ou des providers
 simulés sont exécutés dans des répertoires temporaires.
@@ -2166,6 +2405,16 @@ Résultat obtenu avec la version 2.9.0 :
 PASS: 23
 FAIL: 0
 ~~~
+
+Résultat obtenu avec la version 2.9.1 :
+
+~~~text
+PASS: 29
+FAIL: 0
+~~~
+
+Les six tests supplémentaires concernent la gestion
+du broken pipe et des téléchargements simulés.
 
 ### Tests CLI avec accès réseau
 
@@ -2215,7 +2464,18 @@ PASS: 28
 FAIL: 0
 ~~~
 
-Temps d'exécution observé : environ 26 secondes.
+Temps d'exécution observé : environ 26 secondes
+avec la version 2.9.0.
+
+Résultat obtenu avec la version 2.9.1 :
+
+~~~text
+PASS: 34
+FAIL: 0
+~~~
+
+Ce résultat comprend les 29 tests hors réseau
+et les cinq tests réseau supplémentaires.
 
 ### Tests automatisés de la TUI
 
@@ -2248,6 +2508,140 @@ Ran 8 tests
 
 OK
 ~~~
+
+### Tests du HashSet concurrent
+
+Le programme tests/test-hashset-28.cs vérifie la méthode
+_LockedAdd ajoutée au moteur Captvty par le troisième patch.
+
+Depuis le répertoire du dépôt :
+
+~~~bash
+mcs -out:/tmp/test-hashset-28.exe \
+    tests/test-hashset-28.cs
+~~~
+
+Puis depuis le répertoire de Captvty :
+
+~~~bash
+MONO_PATH="$PWD:$PWD/bin:$PWD/bin/cefsharp" \
+    mono /tmp/test-hashset-28.exe \
+    "$PWD/Captvty-cli-engine-28-progress.exe"
+~~~
+
+Le test effectue cinq séries comportant chacune :
+
+- huit travailleurs logiques exécutés avec Parallel.For ;
+- 50 000 valeurs distinctes par travailleur ;
+- une insertion supplémentaire de chaque valeur ;
+- une vérification du résultat de chaque insertion ;
+- une vérification du nombre final d'éléments.
+
+Chaque série doit produire exactement 400 000 éléments
+distincts dans le HashSet.
+
+Les cinq séries représentent au total quatre millions
+d'appels à la méthode _LockedAdd.
+
+Résultat : cinq séries réussies, aucune erreur.
+
+Voir [Protection du HashSet Arte](docs/ARTE-HASHSET-3.0.1.28.md).
+
+### Tests de résolution du chemin final
+
+Depuis le répertoire du dépôt :
+
+~~~bash
+mcs -out:/tmp/test-final-path.exe \
+    tests/test-final-path.cs
+~~~
+
+Puis depuis le répertoire de Captvty :
+
+~~~bash
+MONO_PATH="$PWD:$PWD/bin:$PWD/bin/cefsharp" \
+    mono /tmp/test-final-path.exe \
+    "$PWD/captvty-provider-28.exe"
+~~~
+
+Les tests utilisent des objets simulés et des fichiers
+temporaires. Aucun téléchargement réseau n'est nécessaire.
+
+Ils vérifient notamment :
+
+- la présence d'un fichier MP4, MKV ou MP3 ;
+- la disparition du MP4 après multiplexage MKV ;
+- l'exclusion des fichiers temporaires et des sous-titres ;
+- l'apparition différée du fichier final ;
+- l'absence de fichier valide ;
+- une liste de fichiers absente ;
+- la présence de plusieurs fichiers candidats.
+
+Résultat : dix tests réussis, aucun échec.
+
+Voir [Résolution du chemin final](docs/FINAL-DOWNLOAD-PATH.md).
+
+### Tests indépendants du broken pipe
+
+Depuis le répertoire du dépôt :
+
+~~~bash
+mcs -out:/tmp/test-stdout-pipe.exe \
+    stdout-pipe.cs \
+    tests/test-stdout-pipe.cs
+~~~
+
+Exemples de vérification sous Bash :
+
+~~~bash
+mono /tmp/test-stdout-pipe.exe | head -5
+echo "${PIPESTATUS[@]}"
+
+mono /tmp/test-stdout-pipe.exe | head -0
+echo "${PIPESTATUS[@]}"
+
+mono /tmp/test-stdout-pipe.exe > /dev/full
+echo "$?"
+
+mono /tmp/test-stdout-pipe.exe > /dev/null
+echo "$?"
+~~~
+
+Résultats attendus :
+
+| Destination | Code retour |
+|---|---|
+| head -5 | 141 0 |
+| head -0 | 141 0 |
+| /dev/full | 42 |
+| /dev/null | 0 |
+
+Le code 42 appartient uniquement à ce programme
+de test indépendant. La CLI retourne 1 pour une
+erreur d'écriture ordinaire.
+
+Ces vérifications indépendantes complètent les six
+tests de non-régression intégrés à test-cli.sh.
+
+Voir [Gestion du broken pipe](docs/BROKEN-PIPE.md).
+
+### Bilan de validation de la version 2.9.1
+
+| Catégorie | Réussis | Échecs |
+|---|---:|---:|
+| CLI hors réseau | 29 | 0 |
+| CLI réseau supplémentaires | 5 | 0 |
+| HashSet concurrent | 5 | 0 |
+| Résolution du chemin final | 10 | 0 |
+| TUI | 8 | 0 |
+| **Total** | **57** | **0** |
+
+Ces résultats ont été obtenus sous Debian 13
+après installation de la version définitive 2.9.1.
+
+Les vérifications indépendantes du broken pipe et les
+téléchargements réels ne sont pas comptabilisés
+dans ce total.
 
 ### Bilan de validation de la version 2.9.0
 
@@ -2291,9 +2685,23 @@ Captvty CLI utilise ses propres codes de retour et peut
 | 7 | Échec du téléchargement ou de la récupération/résolution T18 |
 | 8 | Délai maximal de téléchargement dépassé |
 | 9 | Recherche ambiguë dans le provider Captvty |
+| 10 | Fichier final absent ou impossible à identifier |
+| 141 | Tube de sortie standard fermé prématurément |
 
 La signification exacte dépend de la commande exécutée
 et du message affiché.
+
+### Arguments obligatoires de get
+
+Le code 2 est notamment retourné lorsque le paramètre
+sous-titre est omis.
+
+Pour une émission sans sous-titre éditorial, fournir
+explicitement une chaîne vide `""`.
+
+Voir la section
+[Paramètre sous-titre obligatoire](#paramètre-sous-titre-obligatoire)
+pour les exemples réels de téléchargement.
 
 ### Particularités de T18
 
@@ -2330,6 +2738,67 @@ est interrompu après 12 heures par le provider.
 
 Le code 9 indique que plusieurs émissions correspondent
 à la recherche effectuée par le provider.
+
+Le code 10 indique que le provider n'a pas pu identifier
+un fichier final existant et non ambigu, ou que le fichier
+n'existe plus après la normalisation de son nom.
+
+La résolution du chemin final est réessayée pendant
+cinq secondes au maximum, avec un intervalle de 250 ms.
+
+Voir [Résolution du chemin final](docs/FINAL-DOWNLOAD-PATH.md).
+
+### Fermeture prématurée de la sortie standard
+
+Depuis la version 2.9.1, la CLI détecte sous Linux
+la fermeture prématurée d'un tube anonyme de sortie standard.
+
+Exemple réel validé sous Debian 13 :
+
+~~~bash
+mono captvty-cli.exe list "T18" "" | head -5
+echo "${PIPESTATUS[@]}"
+~~~
+
+Résultat :
+
+~~~text
+141 0
+~~~
+
+Le premier code correspond à Captvty CLI,
+le second à head.
+
+Le code 141 est retourné explicitement par la CLI,
+sans exception Mono non interceptée.
+
+Il ne résulte pas de l'envoi d'un signal SIGPIPE
+au processus.
+
+Lorsqu'un téléchargement utilisant le provider Captvty
+est déjà lancé et que le tube se ferme pendant le suivi
+de sa progression, le téléchargement peut se poursuivre
+sans affichage supplémentaire.
+
+Son code retour reflète alors le résultat du téléchargement.
+
+Les autres erreurs d'écriture, notamment un disque plein,
+ne sont pas assimilées à un broken pipe.
+
+Les tests automatisés couvrent notamment :
+
+- la sortie standard normale ;
+- la fermeture du tube pendant un téléchargement ;
+- la fermeture du tube avant le lancement du téléchargement ;
+- le dépassement du délai maximal ;
+- la redirection vers /dev/full ;
+- la fermeture du tube suivie d'un timeout.
+
+Cette protection a été validée pour les tubes anonymes
+sous Linux. Elle n'a pas été validée pour tous les types
+de redirections ni pour tous les providers spécialisés.
+
+Voir [Gestion du broken pipe](docs/BROKEN-PIPE.md).
 
 ### Particularités de la commande update
 
@@ -2432,6 +2901,34 @@ par le script install.sh :
 13e04a10367e2e7c7492104a81d110470d8def2cd965037d69d2d5d634f756a7  Captvty.exe
 ~~~
 
+### Sources de la version 2.9.1
+
+~~~text
+377000a9833d5dd17f56e8fe9004736a46031df3d4c66436c9e6913ac8cbef07  captvty-cli-v2.9.1.cs
+0daf6c300e2f41642102e580b5fd921de166c9ac39cc3f3dc248726a325d0c1e  captvty-provider-28.cs
+66af5d1202a0316f9bc2dbbf94365b835e32c4e7211c07685959841c5cfdbc09  stdout-pipe.cs
+1962aca570cb0ad1aa6ddc2b8f1110565995c7c847f40eef9b1c91b17e83b418  patch-dpi-28.cs
+972c1187736469acc30e5d9d6d0d76c7c8fc35c14ceafad7858d8bf247bfca8a  patch-28-progress.cs
+3c06513a8a6304800a4e0baf8ffe30c8cb69b0a8bcaa60417f94216d144fe0a3  patch-arte-hashset-28.cs
+84a250aacea0468582cbb17b7d5971822f49bf8fd4884d1f20364a606287bbea  captvty-tui.py
+63edb60a3218e80221187ddc24a646fc8a31da77b95931ac0eee756a4ce37e25  install.sh
+3649332b4884a0b259b73cc2c9e8b8fe71ca6648353c41d4085c6ca0c101e44d  install-media-tools.sh
+2b5c6a2439a817886cd69b9562f9b96befdcc14d9d39d1168885ef090e277799  tools/build-mp4box.sh
+66698b2e3dec7104164b8fd29ff6ae31ac9395a9c89c40c71d6227dc65b75b68  tools/mkvmerge-wrapper.sh
+~~~
+
+### Sources des tests de la version 2.9.1
+
+~~~text
+d636996ff8a505400917b57581993e7872f3fe1eb2d7fa94015983b443094a47  tests/test-cli.sh
+ca7d86057eb5e84ac0e6156d1415bd304d12556f6b4b333c7e5434dab1c00816  tests/test-tui.py
+79eb0efa802cfe10ffaee7ee943743f68c802dba68fc3b413c4df2db2067e27c  tests/fake-audio-provider.cs
+b64f11429937342be88ac26dd79d099362d258c954a33096898a452d21319a8d  tests/fake-get-provider.cs
+3b2aaa70af17c2fb0eb57522a481c920a78c47c44410be229ba65d6244ba7aa3  tests/test-final-path.cs
+5fa21bbfb834f64e81e3c4770e4bc2703966df2d1e00e7614e07b82d677f8093  tests/test-hashset-28.cs
+31be8c92b4676766e1312cfd817e3a0fedd94a98a18fb65dceb40418c08d8a90  tests/test-stdout-pipe.cs
+~~~
+
 ### Sources de la version 2.9.0
 
 ~~~text
@@ -2443,7 +2940,7 @@ par le script install.sh :
 e2372a0742b95846db5b2853a9743cda29cd93d2d01b119b1b5cffadd6aa5e5d  install.sh
 ~~~
 
-### Sources des tests
+### Sources des tests de la version 2.9.0
 
 ~~~text
 8e4d6707f3f350c3deb331fca43b9cd65ccf2d3c15ebae84f69c057aa1e217d4  tests/test-cli.sh
@@ -2456,11 +2953,37 @@ ca7d86057eb5e84ac0e6156d1415bd304d12556f6b4b333c7e5434dab1c00816  tests/test-tui
 Depuis le répertoire du dépôt :
 
 ~~~bash
-sha256sum captvty-cli-v2.9.0.cs \
+sha256sum captvty-cli-v2.9.1.cs \
     captvty-provider-28.cs \
+    stdout-pipe.cs \
     patch-dpi-28.cs \
     patch-28-progress.cs \
-    captvty-tui.py install.sh
+    patch-arte-hashset-28.cs \
+    captvty-tui.py \
+    install.sh \
+    install-media-tools.sh \
+    tools/build-mp4box.sh \
+    tools/mkvmerge-wrapper.sh \
+    tests/test-cli.sh \
+    tests/test-tui.py \
+    tests/fake-audio-provider.cs \
+    tests/fake-get-provider.cs \
+    tests/test-final-path.cs \
+    tests/test-hashset-28.cs \
+    tests/test-stdout-pipe.cs
+~~~
+
+Les empreintes de la version 2.9.1 concernent les
+fichiers sources, les scripts d'installation et les tests.
+
+Les empreintes historiques de la version 2.9.0
+sont conservées pour référence.
+
+Pour vérifier une source historique sans modifier
+le répertoire de travail :
+
+~~~bash
+git show v2.9.0:captvty-cli-v2.9.0.cs | sha256sum
 ~~~
 
 Les empreintes concernent les fichiers sources.
