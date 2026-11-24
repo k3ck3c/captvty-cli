@@ -112,6 +112,145 @@ run_missing_dependency_test()
     fi
 }
 
+
+run_broken_pipe_tests()
+{
+    local tmp name rc output expected marker
+    local -a status
+
+    tmp=$(mktemp -d)
+
+    cp "$CLI" "$tmp/captvty-cli.exe"
+
+    touch "$tmp/Captvty-cli-engine-28-progress.exe"
+
+    mkdir -p "$tmp/bin/cefsharp"
+
+    touch "$tmp/bin/cefsharp/"{CefSharp.dll,CefSharp.Core.dll,CefSharp.WinForms.dll}
+
+    if ! mcs -out:"$tmp/captvty-provider-28.exe" \
+        tests/fake-get-provider.cs
+    then
+        printf 'FAIL  compilation faux provider get\n'
+        FAIL=$((FAIL + 1))
+        rm -rf "$tmp"
+        return
+    fi
+
+    for name in normal pipe closed timeout diskfull pipe-timeout
+    do
+        rm -f "$tmp/fake-download-complete.txt"
+        rm -f "$tmp/stdout.txt" "$tmp/stderr.txt"
+
+        set +e
+
+        case "$name" in
+            normal)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) > "$tmp/stdout.txt" 2> "$tmp/stderr.txt"
+
+                rc=$?
+                expected=0
+                marker=present
+                ;;
+
+            pipe)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) 2> "$tmp/stderr.txt" |
+                    head -3 > "$tmp/stdout.txt"
+
+                status=("${PIPESTATUS[@]}")
+                rc=${status[0]}
+                expected=0
+                marker=present
+                ;;
+
+            closed)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) > >(:) 2> "$tmp/stderr.txt"
+
+                rc=$?
+                expected=141
+                marker=absent
+                ;;
+
+            timeout)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe --timeout 1 get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) > "$tmp/stdout.txt" 2> "$tmp/stderr.txt"
+
+                rc=$?
+                expected=1
+                marker=absent
+                ;;
+
+            diskfull)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) > /dev/full 2> "$tmp/stderr.txt"
+
+                rc=$?
+                expected=1
+                marker=absent
+                ;;
+
+            pipe-timeout)
+                (
+                    cd "$tmp" &&
+                    "$MONO" ./captvty-cli.exe --timeout 1 get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) 2> "$tmp/stderr.txt" |
+                    head -3 > "$tmp/stdout.txt"
+
+                status=("${PIPESTATUS[@]}")
+                rc=${status[0]}
+                expected=1
+                marker=absent
+                ;;
+        esac
+
+        set -e
+
+        local actual_marker=absent
+
+        if [ -f "$tmp/fake-download-complete.txt" ]; then
+            actual_marker=present
+        fi
+
+        if [ "$rc" -eq "$expected" ] &&
+           [ "$actual_marker" = "$marker" ] &&
+           ! grep -Eq 'Unhandled Exception|FATAL UNHANDLED' \
+               "$tmp/stderr.txt"
+        then
+            printf 'PASS  broken pipe : %s\n' "$name"
+            PASS=$((PASS + 1))
+        else
+            printf 'FAIL  broken pipe : %s\n' "$name"
+            printf '      rc attendu=%s obtenu=%s\n' \
+                "$expected" "$rc"
+            printf '      témoin attendu=%s obtenu=%s\n' \
+                "$marker" "$actual_marker"
+            cat "$tmp/stderr.txt"
+            FAIL=$((FAIL + 1))
+        fi
+    done
+
+    rm -rf "$tmp"
+}
+
 run_audio_size_test()
 {
     name="estimation taille avec pistes audio"
@@ -486,6 +625,7 @@ run_channel_search_tests
 run_missing_dependency_test
 run_cached_search_without_runtime_test
 run_audio_size_test
+run_broken_pipe_tests
 
 if [ "${TEST_NETWORK:-0}" = "1" ]; then
     run_t18_network_tests

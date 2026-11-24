@@ -313,41 +313,59 @@ class CaptvtyCli
         Process p = new Process();
         p.StartInfo = psi;
 
+        bool stdoutClosed = false;
+        IOException stdoutError = null;
+
         p.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
         {
             if (e.Data == null) return;
 
             stdout.AppendLine(e.Data);
-            string line = e.Data.TrimStart('\uFEFF');
 
-            if (line.StartsWith("GETMEDIA\t", StringComparison.Ordinal))
+            if (stdoutClosed || stdoutError != null)
+                return;
+
+            try
             {
-                string[] x = line.Split('\t');
-                if (x.Length >= 6)
-                    Console.WriteLine(
-                        "Média: " + x[1] + " - " + x[2] +
-                        " - " + x[3] + "x" + x[4] +
-                        " - " + x[5] + " kb/s");
-            }
-            else if (line.StartsWith("GETSTATE\t", StringComparison.Ordinal))
-            {
-                string[] x = line.Split('\t');
-                if (x.Length >= 2)
+                string line = e.Data.TrimStart('\uFEFF');
+
+                if (line.StartsWith("GETMEDIA\t", StringComparison.Ordinal))
                 {
-                    Console.Write("État Captvty: " + x[1]);
-                    if (x.Length >= 3 && !String.IsNullOrEmpty(x[2]))
-                        Console.Write(" - " + x[2]);
-                    Console.WriteLine();
+                    string[] x = line.Split('\t');
+                    if (x.Length >= 6)
+                        Console.WriteLine(
+                            "Média: " + x[1] + " - " + x[2] +
+                            " - " + x[3] + "x" + x[4] +
+                            " - " + x[5] + " kb/s");
+                }
+                else if (line.StartsWith("GETSTATE\t", StringComparison.Ordinal))
+                {
+                    string[] x = line.Split('\t');
+                    if (x.Length >= 2)
+                    {
+                        Console.Write("État Captvty: " + x[1]);
+                        if (x.Length >= 3 && !String.IsNullOrEmpty(x[2]))
+                            Console.Write(" - " + x[2]);
+                        Console.WriteLine();
+                    }
+                }
+                else if (line.StartsWith("DOWNLOAD\t", StringComparison.Ordinal))
+                {
+                    string[] x = line.Split('\t');
+                    if (x.Length >= 4)
+                    {
+                        Console.WriteLine("Téléchargement terminé:");
+                        Console.WriteLine("  " + x[3]);
+                    }
                 }
             }
-            else if (line.StartsWith("DOWNLOAD\t", StringComparison.Ordinal))
+            catch (StdoutPipeClosedException)
             {
-                string[] x = line.Split('\t');
-                if (x.Length >= 4)
-                {
-                    Console.WriteLine("Téléchargement terminé:");
-                    Console.WriteLine("  " + x[3]);
-                }
+                stdoutClosed = true;
+            }
+            catch (IOException ex)
+            {
+                stdoutError = ex;
             }
         };
 
@@ -376,6 +394,9 @@ class CaptvtyCli
         }
 
         p.WaitForExit();
+
+        if (stdoutError != null)
+            throw stdoutError;
 
         return new WorkerRun {
             TimedOut = false,
@@ -1038,7 +1059,7 @@ class CaptvtyCli
 
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "ERREUR TV5: " + ex.Message);
@@ -1255,7 +1276,7 @@ class CaptvtyCli
                     "[TEST] échec simulé de récupération T18");
             programs = FetchT18Programs(timeoutMs);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "Recherche T18 impossible: " + ex.Message);
@@ -1319,7 +1340,7 @@ class CaptvtyCli
             resolved =
                 ResolveT18Formats(selectedProgram, timeoutMs);
         }
-        catch (Exception firstEx)
+        catch (Exception firstEx) when (!(firstEx is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "Première résolution T18 en échec: " +
@@ -1336,7 +1357,7 @@ class CaptvtyCli
                 resolved =
                     ResolveT18Formats(selectedProgram, timeoutMs);
             }
-            catch (Exception secondEx)
+            catch (Exception secondEx) when (!(secondEx is StdoutPipeClosedException))
             {
                 Console.Error.WriteLine(
                     "Résolution T18 en échec après deux essais: " +
@@ -2024,7 +2045,7 @@ class CaptvtyCli
                 {
                     fresh = FetchT18Catalog(timeoutMs);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (!(ex is StdoutPipeClosedException))
                 {
                     Console.WriteLine("erreur T18 (ancien cache conservé)");
                     Console.Error.WriteLine("T18: " + ex.Message);
@@ -2139,7 +2160,7 @@ class CaptvtyCli
         {
             items = FetchT18Catalog(timeoutMs);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine("ERREUR T18: " + ex.Message);
             return 1;
@@ -2252,7 +2273,7 @@ class CaptvtyCli
         {
             programs = FetchT18Programs(timeoutMs);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.WriteLine("erreur");
             Console.Error.WriteLine(ex.Message);
@@ -2345,7 +2366,7 @@ class CaptvtyCli
                 {
                     media = ResolveT18Media(program, timeoutMs);
                 }
-                catch (Exception firstEx)
+                catch (Exception firstEx) when (!(firstEx is StdoutPipeClosedException))
                 {
                     Console.WriteLine(
                         "       première résolution T18 en échec : " +
@@ -2363,7 +2384,7 @@ class CaptvtyCli
                         durationSeconds,
                         null);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!(ex is StdoutPipeClosedException))
             {
                 Console.WriteLine(
                     "       média T18 : " + ex.Message);
@@ -2920,7 +2941,7 @@ class CaptvtyCli
 
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "ERREUR catalogue TV5: " + ex.Message);
@@ -3289,7 +3310,7 @@ class CaptvtyCli
 
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "ERREUR TV5 get: " + ex.Message);
@@ -3403,7 +3424,7 @@ class CaptvtyCli
 
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is StdoutPipeClosedException))
         {
             Console.Error.WriteLine(
                 "ERREUR TV5 info: " + ex.Message);
@@ -3550,9 +3571,34 @@ class CaptvtyCli
 
     static int Main(string[] args)
     {
+        try
+        {
+            Console.OutputEncoding = new UTF8Encoding(false);
+
+            Console.SetOut(
+                new StdoutPipeWriter(Console.Out));
+
+            int rc = RunMain(args);
+
+            Console.Out.Flush();
+
+            return rc;
+        }
+        catch (StdoutPipeClosedException)
+        {
+            return 141;
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine("ERREUR: " + ex.Message);
+            return 1;
+        }
+    }
+
+    static int RunMain(string[] args)
+    {
         AppDomain.CurrentDomain.AssemblyResolve += ResolveLocalAssembly;
 
-        Console.OutputEncoding = Encoding.UTF8;
 
         if (args.Length == 1 &&
             String.Equals(args[0], "--version", StringComparison.OrdinalIgnoreCase))

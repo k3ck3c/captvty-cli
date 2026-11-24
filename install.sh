@@ -98,6 +98,7 @@ for f in \
     patch-arte-hashset-28.cs \
     captvty-provider-28.cs \
     captvty-cli-v2.9.0.cs \
+    stdout-pipe.cs \
     captvty-tui.py \
     install-media-tools.sh \
     tools/build-mp4box.sh \
@@ -155,7 +156,8 @@ echo
 echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.9.0.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.9.0.cs" \
+    "$SCRIPT_DIR/stdout-pipe.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 
