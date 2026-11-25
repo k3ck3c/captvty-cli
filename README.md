@@ -2,6 +2,51 @@
 
 Interface en ligne de commande pour **Captvty 3.x**, destinée à piloter certaines fonctions de Captvty depuis **Mono sous Linux**.
 
+## Version 2.9.2
+
+Version du 25 novembre 2026.
+
+Cette version améliore l'installation sur les distributions Linux
+dont le Python système est trop ancien pour yt-dlp 2026.10.26.
+Elle conserve Captvty 3.0.1.28, les trois patches du moteur,
+le provider et les fonctionnalités de la version 2.9.1.
+
+### Principales améliorations
+
+- Sélection du Python système si sa version est au moins 3.11
+  et si la création d'un venv avec pip fonctionne.
+- Sinon, installation automatique de CPython 3.13.18 privé sur x86_64.
+- Utilisation temporaire de uv 0.13.10, avec contrôle SHA-256.
+- Conservation du Python système et réutilisation du runtime privé.
+- Installation classique par venv et pip de yt-dlp et curl_cffi.
+- Restauration du venv précédent en cas d'échec pris en charge.
+
+### Validation
+
+| Test | Debian 13 | Ubuntu 22.04.5 LTS (Docker) |
+|---|---:|---:|
+| Python système | 3.13.5 | 3.10.12 |
+| Python T18 | 3.13.5 | 3.13.18 privé |
+| CLI hors réseau | 29/29 | 29/29 |
+| CLI réseau T18 | 5/5 | 5/5 |
+| HashSet concurrent | 5/5 | 5/5 |
+| Résolution du chemin final | 10/10 | 10/10 |
+| TUI | 8/8 | 8/8 |
+| **Total** | **57/57** | **57/57** |
+
+Installation complète sous Ubuntu sans privilèges root après
+installation des dépendances : 152,459 s ; réinstallation : 12,840 s.
+MP4Box et Python privé sont réutilisés. Le téléchargement réel T18
+« Face à face — Risque imminent » en 1080p a réussi en 567,411 s,
+avec un code retour 0 et un MP4 de 1 712 491 974 octets.
+
+Voir [Installation du runtime Python](docs/PYTHON-RUNTIME.md)
+pour les contrôles d'intégrité, les essais de restauration et les limites.
+Linux Mint 21.3 n'a pas été testé directement. La progression du
+téléchargement T18 n'était pas affichée pendant l'essai Docker.
+
+---
+
 ## Version 2.9.1
 
 Version du 24 novembre 2026.
@@ -178,10 +223,11 @@ Le projet fournit notamment :
 
 ## Prérequis
 
-- Linux (validation effectuée sous Debian 13) ;
+- Linux (validation sous Debian 13 et Ubuntu 22.04.5 LTS en Docker) ;
 - Mono et le compilateur `mcs` ;
 - Mono.Cecil ;
-- Python 3 et son module venv ;
+- Python 3 pour le TUI, avec venv et pip recommandés ;
+  Python 3.11 ou supérieur pour T18 (runtime privé automatique sinon) ;
 - curl ;
 - ffmpeg et ffprobe ;
 - mkvtoolnix pour le multiplexage Matroska ;
@@ -189,7 +235,7 @@ Le projet fournit notamment :
 - jq (optionnel, pour interroger le cache JSON) ;
 - une installation originale de **Captvty 3.0.1.28**.
 
-Sous Debian :
+Sous Debian et Ubuntu :
 
 ~~~bash
 sudo apt install git mono-devel libmono-cecil-private-cil \
@@ -213,7 +259,13 @@ sudo apt install jq
 ~~~
 
 La construction a été validée avec Mono.Cecil 0.11.1.0
-sous Debian 13.
+sous Debian 13 et 0.11.0.0 sous Ubuntu 22.04.5 LTS.
+Sous Ubuntu, `libfreetype6-dev` a été utilisé pour GPAC.
+Les outils standard `tar` et `sha256sum` sont également nécessaires.
+Le téléchargement du runtime privé nécessite un accès HTTPS aux
+services de distribution de uv et Python, ainsi qu’un accès aux
+paquets Python pour pip.
+Voir [Installation du runtime Python](docs/PYTHON-RUNTIME.md).
 
 ## Installation rapide
 
@@ -254,7 +306,9 @@ Le script :
 - sauvegarde les éventuels fichiers CLI et outils
   multimédias précédents ;
 - installe la CLI, le TUI et les outils multimédias ;
-- crée un environnement Python dédié aux replays T18.
+- sélectionne ou installe un Python compatible pour T18 ;
+- crée un environnement Python dédié aux replays T18, avec
+  restauration du venv précédent en cas d’échec pris en charge.
 
 L'environnement `.ytdlp-venv` contient notamment :
 
@@ -268,6 +322,9 @@ l'impersonation Chrome par curl_cffi.
 
 La CLI utilise en priorité le yt-dlp de cet environnement,
 sans nécessiter son activation manuelle.
+Depuis la 2.9.2, un Python privé peut être installé dans
+`.python-runtime/` sans modifier le Python système.
+Le TUI continue à utiliser le Python système.
 
 La migration d'une ancienne installation contenant des shims
 ou des moteurs modifiés n'a pas été validée.
@@ -277,7 +334,7 @@ ou des moteurs modifiés n'a pas été validée.
 L'utilisation de `install.sh` est recommandée.
 
 La procédure manuelle ci-dessous décrit la construction
-des composants C# de Captvty CLI 2.9.1.
+des composants C# de Captvty CLI 2.9.2.
 
 Le dépôt ne fournit pas Captvty.exe.
 
@@ -423,7 +480,7 @@ mcs -r:System.Core -r:System.Web.Extensions \
 ~~~bash
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:captvty-cli.exe \
-    captvty-cli-v2.9.1.cs \
+    captvty-cli-v2.9.2.cs \
     stdout-pipe.cs
 ~~~
 
@@ -444,6 +501,7 @@ bin/
     mp4box/mp4box
     mkvtoolnix/mkvmerge
 .ytdlp-venv/
+.python-runtime/  (si nécessaire)
 ~~~
 
 La CLI configure automatiquement MONO_PATH pour ses providers.
@@ -463,7 +521,7 @@ Voir [MP4Box et mkvmerge sous Linux](docs/MEDIA-TOOLS.md).
 ### Validation de la construction
 
 La procédure d'installation a été validée sous Debian 13
-à partir d'une installation originale de Captvty 3.0.1.28.
+et Ubuntu 22.04.5 LTS à partir de Captvty 3.0.1.28 original.
 
 ~~~bash
 mono captvty-cli.exe --version
@@ -472,7 +530,7 @@ mono captvty-cli.exe --version
 Résultat attendu :
 
 ~~~text
-captvty-cli 2.9.1
+captvty-cli 2.9.2
 ~~~
 
 Exemple :
@@ -1695,6 +1753,24 @@ Le fichier obtenu a été analysé avec ffprobe.
 | Débit global | 4760452 bits/s |
 | Temps de téléchargement | environ 3 min 59 s |
 
+#### Validation T18 avec la version 2.9.2
+
+Sous Ubuntu 22.04.5 LTS, le catalogue contenait 203 replays.
+La commande `info "T18" "Face à face - Risque imminent"` a
+retourné quatre qualités. Le téléchargement suivant a réussi :
+
+~~~bash
+mono captvty-cli.exe get "T18" "Face à face" "Risque imminent" high
+~~~
+
+Le fichier MP4 obtenu contient une vidéo H.264 1920 x 1080
+et une piste AAC. Durée : 2889,287007 s ; taille : 1 712 491 974
+octets ; temps réel : 567,411 s ; code retour : 0.
+Aucun fichier temporaire correspondant ne subsistait.
+La progression yt-dlp n'était pas affichée durant cet essai.
+Les caractéristiques concordent avec le téléchargement Debian
+historique de la 2.9.1, sans comparaison SHA-256 des vidéos.
+
 #### Limites de la validation
 
 Les fichiers France 3 et T18 ont été contrôlés avec ffprobe,
@@ -1715,7 +1791,7 @@ Voir la section TV5MONDE+.
 
 ## Installation et fichiers utilisés
 
-L'installation de Captvty CLI 2.9.1 repose sur une
+L'installation de Captvty CLI 2.9.2 repose sur une
 distribution originale de Captvty 3.0.1.28.
 
 Le script install.sh compile et installe les composants
@@ -1732,6 +1808,7 @@ captvty-cli.exe
 captvty-tui.py
 captvty-cache-28.json
 .ytdlp-venv/
+.python-runtime/  (si nécessaire)
 bin/
     cefsharp/
     mp4box/mp4box
@@ -1750,6 +1827,8 @@ bin/
 | captvty-tui.py | Interface interactive en mode texte |
 | captvty-cache-28.json | Catalogue local et état des campagnes |
 | .ytdlp-venv/ | Environnement Python utilisé pour T18 |
+| .python-runtime/ | Runtime Python privé facultatif |
+| .ytdlp-venv.old/ | Sauvegarde temporaire du venv pendant son remplacement |
 | bin/ | Dépendances originales et outils multimédias natifs |
 | bin/cefsharp/ | Bibliothèques CefSharp originales |
 | bin/mp4box/mp4box | MP4Box natif sous Linux |
@@ -1788,7 +1867,7 @@ La migration directe d'une installation antérieure
 n'a pas été testée.
 
 Le cache `captvty-cache-28.json` conserve le même nom
-entre les versions 2.9.0 et 2.9.1.
+entre les versions 2.9.0, 2.9.1 et 2.9.2.
 
 Une réinstallation sur une installation 2.9.1 a également
 été validée, avec sauvegarde des composants précédents
@@ -2625,6 +2704,23 @@ tests de non-régression intégrés à test-cli.sh.
 
 Voir [Gestion du broken pipe](docs/BROKEN-PIPE.md).
 
+### Bilan de validation de la version 2.9.2
+
+Les mêmes suites ont été exécutées sous Debian 13 et Ubuntu 22.04.5 LTS.
+
+| Catégorie | Debian 13 | Ubuntu 22.04.5 |
+|---|---:|---:|
+| CLI hors réseau | 29/29 | 29/29 |
+| CLI réseau supplémentaires | 5/5 | 5/5 |
+| HashSet concurrent | 5/5 | 5/5 |
+| Résolution du chemin final | 10/10 | 10/10 |
+| TUI | 8/8 | 8/8 |
+| Total | 57/57 | 57/57 |
+
+Soit 114 résultats positifs, sans échec. Les essais manuels
+Python et le téléchargement réel ne sont pas inclus dans ce total.
+Voir [Installation du runtime Python](docs/PYTHON-RUNTIME.md).
+
 ### Bilan de validation de la version 2.9.1
 
 | Catégorie | Réussis | Échecs |
@@ -2901,6 +2997,36 @@ par le script install.sh :
 13e04a10367e2e7c7492104a81d110470d8def2cd965037d69d2d5d634f756a7  Captvty.exe
 ~~~
 
+### Sources de la version 2.9.2
+
+~~~text
+9d7e947c95cf76f4b6ebc74fd72bfb0324ff0d88647a80d265a550a255215e13  captvty-cli-v2.9.2.cs
+0daf6c300e2f41642102e580b5fd921de166c9ac39cc3f3dc248726a325d0c1e  captvty-provider-28.cs
+1962aca570cb0ad1aa6ddc2b8f1110565995c7c847f40eef9b1c91b17e83b418  patch-dpi-28.cs
+972c1187736469acc30e5d9d6d0d76c7c8fc35c14ceafad7858d8bf247bfca8a  patch-28-progress.cs
+3c06513a8a6304800a4e0baf8ffe30c8cb69b0a8bcaa60417f94216d144fe0a3  patch-arte-hashset-28.cs
+66af5d1202a0316f9bc2dbbf94365b835e32c4e7211c07685959841c5cfdbc09  stdout-pipe.cs
+84a250aacea0468582cbb17b7d5971822f49bf8fd4884d1f20364a606287bbea  captvty-tui.py
+4a52762535fb4f876de27be7526f8ee98d27573103471c26e0866aab3fc11710  install.sh
+3649332b4884a0b259b73cc2c9e8b8fe71ca6648353c41d4085c6ca0c101e44d  install-media-tools.sh
+2b5c6a2439a817886cd69b9562f9b96befdcc14d9d39d1168885ef090e277799  tools/build-mp4box.sh
+66698b2e3dec7104164b8fd29ff6ae31ac9395a9c89c40c71d6227dc65b75b68  tools/mkvmerge-wrapper.sh
+b764dcd442af43a327c5517853ea7880bda7fad4b16cc78a48689ac3342a7efe  tools/prepare-python.sh
+108812aedb5bcdcfec468a6c445838e65bd7095dc7c37f3963474f71a882a427  tools/install-ytdlp.sh
+~~~
+
+### Sources des tests de la version 2.9.2
+
+~~~text
+79eb0efa802cfe10ffaee7ee943743f68c802dba68fc3b413c4df2db2067e27c  tests/fake-audio-provider.cs
+b64f11429937342be88ac26dd79d099362d258c954a33096898a452d21319a8d  tests/fake-get-provider.cs
+6e0491cb7945ed473ab95044d4e58146876f2dfc99996fad2e05a92faaefbbba  tests/test-cli.sh
+3b2aaa70af17c2fb0eb57522a481c920a78c47c44410be229ba65d6244ba7aa3  tests/test-final-path.cs
+5fa21bbfb834f64e81e3c4770e4bc2703966df2d1e00e7614e07b82d677f8093  tests/test-hashset-28.cs
+31be8c92b4676766e1312cfd817e3a0fedd94a98a18fb65dceb40418c08d8a90  tests/test-stdout-pipe.cs
+ca7d86057eb5e84ac0e6156d1415bd304d12556f6b4b333c7e5434dab1c00816  tests/test-tui.py
+~~~
+
 ### Sources de la version 2.9.1
 
 ~~~text
@@ -2953,7 +3079,7 @@ ca7d86057eb5e84ac0e6156d1415bd304d12556f6b4b333c7e5434dab1c00816  tests/test-tui
 Depuis le répertoire du dépôt :
 
 ~~~bash
-sha256sum captvty-cli-v2.9.1.cs \
+sha256sum captvty-cli-v2.9.2.cs \
     captvty-provider-28.cs \
     stdout-pipe.cs \
     patch-dpi-28.cs \
@@ -2964,6 +3090,8 @@ sha256sum captvty-cli-v2.9.1.cs \
     install-media-tools.sh \
     tools/build-mp4box.sh \
     tools/mkvmerge-wrapper.sh \
+    tools/prepare-python.sh \
+    tools/install-ytdlp.sh \
     tests/test-cli.sh \
     tests/test-tui.py \
     tests/fake-audio-provider.cs \
@@ -2973,10 +3101,10 @@ sha256sum captvty-cli-v2.9.1.cs \
     tests/test-stdout-pipe.cs
 ~~~
 
-Les empreintes de la version 2.9.1 concernent les
+Les empreintes de la version 2.9.2 concernent les
 fichiers sources, les scripts d'installation et les tests.
 
-Les empreintes historiques de la version 2.9.0
+Les empreintes historiques des versions 2.9.0 et 2.9.1
 sont conservées pour référence.
 
 Pour vérifier une source historique sans modifier
