@@ -14,5 +14,7 @@ captvty-cache-28.json.bak
 
 # Environnement Python local
 .ytdlp-venv/
+.ytdlp-venv.old/
+.python-runtime/
 __pycache__/
 *.pyc

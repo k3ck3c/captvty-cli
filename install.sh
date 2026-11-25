@@ -102,7 +102,9 @@ for f in \
     captvty-tui.py \
     install-media-tools.sh \
     tools/build-mp4box.sh \
-    tools/mkvmerge-wrapper.sh
+    tools/mkvmerge-wrapper.sh \
+    tools/prepare-python.sh \
+    tools/install-ytdlp.sh
 do
     [ -f "$SCRIPT_DIR/$f" ] || die "source manquante : $f"
     printf "  OK  %s\n" "$f"
@@ -242,69 +244,8 @@ printf "  OK  %s\n" "captvty-tui.py"
 echo
 echo "Installation du support T18..."
 
-YTDLP_DEST="$CAPTVTY_DIR/.ytdlp-venv"
-YTDLP_OLD="$CAPTVTY_DIR/.ytdlp-venv.old"
-
-rm -rf "$YTDLP_OLD"
-
-if [ -d "$YTDLP_DEST" ]; then
-    mv "$YTDLP_DEST" "$YTDLP_OLD"
-fi
-
-restore_ytdlp()
-{
-    rm -rf "$YTDLP_DEST"
-    if [ -d "$YTDLP_OLD" ]; then
-        mv "$YTDLP_OLD" "$YTDLP_DEST"
-    fi
-}
-
-if ! python3 -m venv "$YTDLP_DEST"; then
-    restore_ytdlp
-    die "impossible de créer l'environnement Python T18"
-fi
-
-if ! "$YTDLP_DEST/bin/pip" install \
-    'yt-dlp==2026.10.26' \
-    'curl_cffi==0.17.0'; then
-    restore_ytdlp
-    die "installation de yt-dlp/curl_cffi impossible"
-fi
-
-YTDLP_VERSION="$("$YTDLP_DEST/bin/yt-dlp" --version)" || {
-    restore_ytdlp
-    die "impossible d'exécuter yt-dlp"
-}
-
-if [ "$YTDLP_VERSION" != "2026.10.26" ]; then
-    restore_ytdlp
-    die "version yt-dlp inattendue : $YTDLP_VERSION"
-fi
-
-CURL_CFFI_VERSION="$("$YTDLP_DEST/bin/python3" -c \
-    'import curl_cffi; print(curl_cffi.__version__)')" || {
-    restore_ytdlp
-    die "impossible de charger curl_cffi"
-}
-
-if [ "$CURL_CFFI_VERSION" != "0.17.0" ]; then
-    restore_ytdlp
-    die "version curl_cffi inattendue : $CURL_CFFI_VERSION"
-fi
-
-if ! "$YTDLP_DEST/bin/yt-dlp" --list-impersonate-targets 2>&1 |
-    grep -Eq '^Chrome-.*curl_cffi$'; then
-    restore_ytdlp
-    die "impersonation Chrome via curl_cffi indisponible"
-fi
-
-printf "  OK  yt-dlp %s\n" "$YTDLP_VERSION"
-printf "  OK  curl_cffi %s\n" "$CURL_CFFI_VERSION"
-printf "  OK  impersonation Chrome disponible\n"
-
-rm -rf "$YTDLP_OLD"
-
-printf "  OK  %s\n" ".ytdlp-venv"
+bash "$SCRIPT_DIR/tools/install-ytdlp.sh" "$CAPTVTY_DIR" ||
+    die "installation du support T18 impossible"
 
 echo
 echo "Installation terminée."
