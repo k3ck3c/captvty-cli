@@ -1,4 +1,4 @@
-# Installation du runtime Python pour T18 — Captvty CLI 2.9.2
+# Installation du runtime Python pour T18 — Captvty CLI 2.9.2 et 2.9.3
 
 ## Origine et périmètre
 
@@ -22,7 +22,7 @@ Sur Ubuntu 22.04, Python 3.10.12 ne permet pas d'installer la version demandée 
 
 Le choix retenu est de conserver venv et pip sur toutes les distributions. uv sert uniquement à obtenir un interpréteur privé si nécessaire. L'installation n'exige pas de modifier `/usr/bin/python3`, d'ajouter un PPA ou d'installer uv globalement. Le TUI conserve son interpréteur système.
 
-## Organisation
+## Organisation historique (2.9.2)
 
 ```text
 install.sh
@@ -73,7 +73,7 @@ Le catalogue `crates/uv-python-managed/download-metadata.json` contient l'entré
 
 Cet audit est une lecture du code source, pas un test d'injection d'une archive Python corrompue ni une vérification indépendante de signatures. Le test source uv mentionné n'a pas été exécuté. uv adapte également les chemins sysconfig du runtime à son emplacement local.
 
-## Installation et restauration du venv
+## Installation et restauration du venv (2.9.2)
 
 `install-ytdlp.sh` prépare Python avant de déplacer le venv existant. Il refuse les chemins venv ou sauvegarde qui sont des liens symboliques ou des objets autres que des répertoires. Si seule `.ytdlp-venv.old` existe, elle est restaurée ; si les deux existent, le script refuse de continuer sans vérification manuelle.
 
@@ -178,6 +178,36 @@ Catalogue : 203 replays. Résolution : 1080p, 6222 kb/s annoncé. Téléchargeme
 Pendant le téléchargement, aucune progression n'était affichée. L'activité réelle a été confirmée par la croissance du fichier `.mp4.part` et la présence de fragments. Ce défaut d'affichage reste à analyser séparément.
 
 La réinstallation complète Ubuntu a confirmé la réutilisation de MP4Box et du Python privé, la reconstruction du venv depuis les paquets en cache et un code retour 0. Les quatre avertissements CS0649 habituels de TV5MONDE+ sont toujours présents.
+
+## Réutilisation du venv depuis la 2.9.3
+
+La sélection de Python et les mécanismes de sauvegarde restent inchangés. Avant toute reconstruction, `validate_venv()` vérifie dans un sous-shell :
+
+- Python >= 3.11, interpréteur de base identique au Python sélectionné (chemins résolus), préfixe correspondant au venv et distinct du préfixe de base ;
+- `include-system-site-packages = false` dans pyvenv.cfg ;
+- `pip check`, yt-dlp 2026.10.26, import et version curl_cffi 0.17.0 ;
+- disponibilité d'une cible Chrome utilisant curl_cffi.
+
+Si tous les contrôles réussissent, le script retourne 0 sans déplacer le venv ni installer de paquets. Sinon, il applique la procédure historique de reconstruction et restauration. La même fonction valide le nouveau venv avant suppression de la sauvegarde. Le Python sélectionné est vérifié même en cas de réutilisation.
+
+### Essais Ubuntu 22.04.5 LTS du 27 novembre 2026
+
+| Essai | Code | Temps |
+|---|---:|---:|
+| Réutilisation avec DNS en panne | 0 | 3,453 s |
+| Deuxième réutilisation | 0 | 3,527 s |
+| Installation complète avec DNS en panne | 0 | 6,086 s |
+| Venv incomplet, reconstruction échouée (DNS) | 1 | 98,971 s |
+| Reconstruction après réparation DNS | 0 | 9,489 s |
+| Création sans venv préexistant | 0 | 8,971 s |
+
+Les deux réutilisations ont conservé les inodes, dates de modification et l'empreinte de yt-dlp. La restauration du venv incomplet de laboratoire a conservé les inodes, dates, empreintes de pyvenv.cfg et du fichier témoin. Après reconstruction réussie, le témoin a disparu et le nouveau venv a passé les contrôles. Aucune sauvegarde `.old` résiduelle dans ces essais.
+
+La panne DNS provenait du resolv.conf du conteneur (ancien serveur 192.168.1.1). Un redémarrage du conteneur a rétabli le serveur 192.168.1.254 et l'accès HTTPS à PyPI, sans changement global de configuration. Il ne s'agit pas d'un essai avec réseau physiquement coupé. Les créations de laboratoire réutilisent le runtime privé et le cache pip ; elles ne constituent pas une installation sur machine vierge.
+
+La réinstallation Ubuntu 2.9.2 (12,840 s) reconstruisait le venv ; celle de la 2.9.3 (6,086 s) le réutilise, soit environ 2,1 fois plus rapide dans ces conditions. Les résultats ne constituent pas une garantie de temps.
+
+Les essais d'installation restent distincts des 124 tests fonctionnels par distribution. Les limites historiques ci-dessous restent applicables ; la validation ne garantit pas l'intégrité cryptographique de chaque paquet installé ni la sûreté des installations concurrentes.
 
 ## Limites
 
