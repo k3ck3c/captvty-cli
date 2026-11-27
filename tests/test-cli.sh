@@ -137,7 +137,7 @@ run_broken_pipe_tests()
         return
     fi
 
-    for name in normal pipe closed timeout diskfull pipe-timeout
+    for name in normal pipe closed timeout diskfull pipe-timeout external-cwd
     do
         rm -f "$tmp/fake-download-complete.txt"
         rm -f "$tmp/stdout.txt" "$tmp/stderr.txt"
@@ -207,6 +207,19 @@ run_broken_pipe_tests()
                 marker=absent
                 ;;
 
+            external-cwd)
+                mkdir -p "$tmp/caller"
+                (
+                    cd "$tmp/caller" &&
+                    "$MONO" "$tmp/captvty-cli.exe" get \
+                        "TEST TV" "Test vidéo" "Test" high
+                ) > "$tmp/stdout.txt" 2> "$tmp/stderr.txt"
+
+                rc=$?
+                expected=0
+                marker=present
+                ;;
+
             pipe-timeout)
                 (
                     cd "$tmp" &&
@@ -231,6 +244,7 @@ run_broken_pipe_tests()
         fi
 
         if [ "$rc" -eq "$expected" ] &&
+           [ ! -f "$tmp/caller/fake-download-complete.txt" ] &&
            [ "$actual_marker" = "$marker" ] &&
            ! grep -Eq 'Unhandled Exception|FATAL UNHANDLED' \
                "$tmp/stderr.txt"
@@ -559,7 +573,7 @@ run_test \
 run_test \
     "--version" \
     0 \
-    "captvty-cli 2.9.2" \
+    "captvty-cli 2.9.3" \
     --version
 
 

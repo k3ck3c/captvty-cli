@@ -82,25 +82,12 @@ class CaptvtyProvider
 
     static string NormalizeText(string s)
     {
-        if (String.IsNullOrEmpty(s)) return "";
-
-        string d = s.Normalize(NormalizationForm.FormD);
-        StringBuilder b = new StringBuilder(d.Length);
-
-        foreach (char c in d)
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-                b.Append(c);
-
-        return b.ToString()
-            .Normalize(NormalizationForm.FormC)
-            .ToLowerInvariant();
+        return TextMatching.NormalizeText(s);
     }
 
     static bool ContainsText(string text, string wanted)
     {
-        return NormalizeText(text).IndexOf(
-            NormalizeText(wanted),
-            StringComparison.Ordinal) >= 0;
+        return TextMatching.ContainsText(text, wanted);
     }
 
     static List<object> ToList(object obj)

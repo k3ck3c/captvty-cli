@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="2.9.2"
+VERSION="2.9.3"
 
 die()
 {
@@ -97,8 +97,9 @@ for f in \
     patch-28-progress.cs \
     patch-arte-hashset-28.cs \
     captvty-provider-28.cs \
-    captvty-cli-v2.9.2.cs \
+    captvty-cli-v2.9.3.cs \
     stdout-pipe.cs \
+    text-matching.cs \
     captvty-tui.py \
     install-media-tools.sh \
     tools/build-mp4box.sh \
@@ -150,7 +151,8 @@ echo "Compilation du provider..."
 
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-provider-28.exe" \
-    "$SCRIPT_DIR/captvty-provider-28.cs"
+    "$SCRIPT_DIR/captvty-provider-28.cs" \
+    "$SCRIPT_DIR/text-matching.cs"
 
 echo "  OK  provider compilé"
 
@@ -158,8 +160,9 @@ echo
 echo "Compilation de Captvty CLI $VERSION..."
 mcs -r:System.Core -r:System.Web.Extensions \
     -out:"$BUILD_DIR/captvty-cli.exe" \
-    "$SCRIPT_DIR/captvty-cli-v2.9.2.cs" \
-    "$SCRIPT_DIR/stdout-pipe.cs"
+    "$SCRIPT_DIR/captvty-cli-v2.9.3.cs" \
+    "$SCRIPT_DIR/stdout-pipe.cs" \
+    "$SCRIPT_DIR/text-matching.cs"
 echo "  OK  Captvty CLI $VERSION compilé"
 
 
