@@ -3271,3 +3271,18 @@ Ce projet repose sur l'observation et l'appel d'éléments internes de Captvty.
 Les noms internes pouvant changer entre versions de Captvty, une nouvelle version de Captvty peut nécessiter une adaptation du moteur, des patches ou du worker.
 
 Le dépôt ne fournit pas les binaires de Captvty lui-même.
+
+## Licence
+
+Les développements originaux du projet Captvty CLI sont distribués
+sous licence MIT. Voir le fichier [LICENSE](LICENSE).
+
+Cette licence ne s'applique pas au logiciel Captvty, à ses composants
+propriétaires ni aux composants tiers utilisés par le projet.
+
+Captvty, Mono, Mono.Cecil, CefSharp, GPAC/MP4Box, FFmpeg, yt-dlp
+et les autres dépendances restent soumis à leurs licences
+et conditions d'utilisation respectives.
+
+Captvty CLI est un projet indépendant, non affilié au développeur
+de Captvty.
